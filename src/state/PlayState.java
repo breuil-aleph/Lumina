@@ -222,6 +222,7 @@ public class PlayState extends GameState {
                 }
             }
         }
+        earthArea.drawOverlay(g2); 
     }
 
     private Polygon getDiamondPolygon(int centerX, int centerY, int w, int h) {
