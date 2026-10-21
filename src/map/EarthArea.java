@@ -54,7 +54,7 @@ public class EarthArea extends MapArea {
     // ====================== THAM SỐ DỄ CHỈNH ======================
     private static final int GATE_R = 0, GATE_C = 0;   // ô đặt cổng (0,0 = góc sau cùng của đảo)
     private static final int GATE_H = 720;             // chiều cao cổng khi dùng ảnh (px world)
-    private static final int GATE_LIFT = 20;          // nâng cổng lên (+) hay hạ xuống (-)
+    private static final int GATE_LIFT = 20;           // nâng cổng lên (+) hay hạ xuống (-)
     private static final int ORB_W = 340;              // chiều rộng quả cầu khi dùng ảnh
     private static final int ORB_LIFT = 260;           // độ cao quả cầu so với mặt đất
     private static final int LAKE_W = 440;             // chiều rộng hồ khi dùng ảnh
