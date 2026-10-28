@@ -19,16 +19,14 @@ import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
 /**
  * ĐẢO 3 - THẾ GIỚI SẤM SÉT (màu chủ đạo: tím)
  *
- * Bố cục: núi cao bao quanh vành đảo -> chân núi -> 4 ô trồng cây (mỗi ô 3x3) ngăn bởi đường chữ thập
+ * Bố cục: vành đảo -> chân đồi -> 4 ô trồng cây (mỗi ô 3x3) ngăn bởi đường chữ thập
  * -> quảng trường trung tâm có quả cầu lơ lửng. Cổng sấm sét đứng ở góc sau của đảo.
  * Trên trời: mây bão tím, sét đánh (có nháy sáng), tia điện nhỏ bay lên.
  *
@@ -38,10 +36,7 @@ import java.util.Random;
  *   lake.png        - hồ nước dưới quả cầu (ảnh phẳng nằm trên mặt đất, dạng hình thoi/elip 2:1). Chỉnh LAKE_W.
  *   ring_back.png, ring_front.png - (tuỳ chọn) vành hào quang kiểu sao Thổ, cùng kích thước & căn giữa:
  *                     ring_back là nửa nằm sau đảo, ring_front là nửa nằm trước đảo. Có ảnh thì bỏ vành tự vẽ.
- *   mountain*.png (mountain1.png, mountain_2.png, mountainA.jpg...) - ẢNH NÚI bao quanh vành đảo (nền trong suốt, chân núi nằm sát đáy ảnh).
- *                     Mọi file trong res/map3 có tên bắt đầu bằng "mountain" đều được nạp, game tự random + lật ngang.
- *                     Không có ảnh nào thì dùng núi tự vẽ. Chỉnh các hằng số MT_* bên dưới cho vừa mắt.
- *   map3_island.png - (tuỳ chọn) ảnh nền cả đảo 2880x1440; nếu có thì thay luôn nền ô và dãy núi tự vẽ.
+ *   map3_island.png - (tuỳ chọn) ảnh nền cả đảo 2880x1440; nếu có thì thay luôn nền ô tự vẽ.
  *   plant_lv1/2/3.png - cây người chơi trồng (Plant.java nạp), nên vẽ tông tím.
  */
 public class EarthArea extends MapArea {
@@ -54,7 +49,7 @@ public class EarthArea extends MapArea {
     // ====================== THAM SỐ DỄ CHỈNH ======================
     private static final int GATE_R = 0, GATE_C = 0;   // ô đặt cổng (0,0 = góc sau cùng của đảo)
     private static final int GATE_H = 720;             // chiều cao cổng khi dùng ảnh (px world)
-    private static final int GATE_LIFT = 20;          // nâng cổng lên (+) hay hạ xuống (-)
+    private static final int GATE_LIFT = 20;           // nâng cổng lên (+) hay hạ xuống (-)
     private static final int ORB_W = 340;              // chiều rộng quả cầu khi dùng ảnh
     private static final int ORB_LIFT = 260;           // độ cao quả cầu so với mặt đất
     private static final int LAKE_W = 440;             // chiều rộng hồ khi dùng ảnh
@@ -69,8 +64,8 @@ public class EarthArea extends MapArea {
     private static final double LAKE_FX_RX = 170;          // nửa chiều rộng vùng nước có gợn sóng (chiều cao = 1/2)
     private static final double ORB_FX_R = 130;            // bán kính vùng tia điện bên trong quả cầu
 
-    // Bật/tắt các lớp trang trí bên ngoài dãy núi
-    private static final boolean SHOW_CLOUD_COLLAR = true;   // mây bao quanh chân núi (phía ngoài)
+    // Bật/tắt các lớp trang trí bên ngoài đảo
+    private static final boolean SHOW_CLOUD_COLLAR = true;   // mây bao quanh đảo (phía ngoài)
     private static final boolean SHOW_HALO_RING = true;      // vành hào quang kiểu sao Thổ
     private static final int RING_BASE = 1950;               // bán kính ngoài của vành (px world)
     private static final int RING_DY = 120;                  // dịch tâm vành xuống một chút so với tâm đảo
@@ -85,40 +80,19 @@ public class EarthArea extends MapArea {
     // 4 ô trồng cây: {hàng đầu, hàng cuối, cột đầu, cột cuối}
     private static final int[][] PLOTS = {{2, 4, 2, 4}, {2, 4, 7, 9}, {7, 9, 2, 4}, {7, 9, 7, 9}};
 
-    // Lề ảnh đệm của dãy núi
-    private static final int PAD_X = 200, PAD_TOP = 700, PAD_BOTTOM = 120;
-    private static final double MOUNT_SCALE = 0.5;    // vẽ đệm nửa kích thước cho đỡ tốn bộ nhớ (núi tự vẽ)
-
-    // ====================== NÚI DÙNG ẢNH (res/map3/mountain1..8.png) ======================
-    private static final int MT_MAX_VARIANTS = 16;         // số ảnh núi tối đa sẽ nạp
-    private static final double MT_RIM_W_MIN = 380;        // chiều rộng núi ở vành ngoài (px world) - nhỏ nhất
-    private static final double MT_RIM_W_MAX = 560;        // ... lớn nhất
-    private static final double MT_FOOT_SCALE = 0.55;      // núi chân đồi (hàng trong) nhỏ bằng ngần này so với núi vành
-    private static final double MT_MAX_H = 820;            // giới hạn chiều cao 1 ngọn (px world), tránh tràn ảnh đệm
-    private static final int MT_SINK = 14;                 // hạ chân núi xuống thêm (px) để che phần trong suốt ở đáy ảnh
-    private static final boolean MT_FLIP = true;           // cho phép lật ngang ngẫu nhiên
-    private static final boolean MT_SHADOW = true;         // bóng mờ dưới chân núi
-    private static final double MT_LAYER_SCALE = 0.75;     // độ nét của lớp đệm núi ảnh (1.0 = nét nhất, tốn RAM nhất)
-
     // Sét: 3 "kênh" đánh lệch nhịp nhau
     private static final double[] BOLT_PERIOD = {3.3, 4.7, 6.1};
     private static final double[] BOLT_OFFSET = {0.0, 1.7, 3.1};
 
     private BufferedImage islandBgImg, gateImg, orbImg, lakeImg, ringBackImg, ringFrontImg;
-    private BufferedImage mountainLayer;
-    private final List<BufferedImage> mountainImgs = new ArrayList<>();   // ảnh núi người chơi cung cấp
-    private double mountScale = MOUNT_SCALE;                               // tỉ lệ thực tế của lớp đệm núi
-    private final List<double[]> tips = new ArrayList<>();   // đỉnh núi cao (x, y so với tâm đảo)
-
     private final long[] boltSlot = {-1, -1, -1};
     private final Path2D[] boltMain = new Path2D[3];
     private final Path2D[] boltBranch = new Path2D[3];
-    private final double[][] boltTarget = new double[3][3];  // x, y, loại (0 đỉnh núi, 1 quả cầu, 2 trời)
+    private final double[][] boltTarget = new double[3][3];  // x, y, loại (1 quả cầu, 2 trời)
 
     public EarthArea() {
         super(false);
         loadImages();
-        buildMountains();
     }
 
     @Override
@@ -130,25 +104,6 @@ public class EarthArea extends MapArea {
         lakeImg = ImageHelper.loadImage("res/map3/lake.png");
         ringBackImg = ImageHelper.loadImage("res/map3/ring_back.png");
         ringFrontImg = ImageHelper.loadImage("res/map3/ring_front.png");
-
-        // Quét thư mục res/map3: nạp MỌI ảnh có tên bắt đầu bằng "mountain" (hoặc gõ nhầm "moutain"), đuôi png/jpg/jpeg
-        mountainImgs.clear();
-        File[] files = new File("res/map3").listFiles();
-        if (files != null) {
-            Arrays.sort(files);
-            for (File f : files) {
-                String n = f.getName().toLowerCase();
-                boolean nameOk = n.startsWith("mountain") || n.startsWith("moutain");
-                boolean extOk = n.endsWith(".png") || n.endsWith(".jpg") || n.endsWith(".jpeg");
-                if (!nameOk || !extOk || mountainImgs.size() >= MT_MAX_VARIANTS) continue;
-                BufferedImage m = ImageHelper.loadImage(f.getPath());
-                if (m != null) {
-                    mountainImgs.add(m);
-                    System.out.println("[EarthArea] Đã nạp núi: " + f.getName());
-                }
-            }
-        }
-        System.out.println("[EarthArea] Tổng số ảnh núi: " + mountainImgs.size());
     }
 
     // =========================================================================
@@ -162,10 +117,6 @@ public class EarthArea extends MapArea {
         if (midR || midC) return PATH;
         if (layer == 1) return FOOT;
         return PLOT;
-    }
-
-    private boolean nearGate(int r, int c) {
-        return Math.abs(r - GATE_R) <= 1 && Math.abs(c - GATE_C) <= 1;
     }
 
     // Toạ độ world của điểm (r, c) có thể là số lẻ - cùng công thức với ImageHelper
@@ -189,186 +140,6 @@ public class EarthArea extends MapArea {
         return new Color(Math.min(255, (int) (c.getRed() * f)),
                          Math.min(255, (int) (c.getGreen() * f)),
                          Math.min(255, (int) (c.getBlue() * f)));
-    }
-
-    // =========================================================================
-    // DÃY NÚI (vẽ sẵn 1 lần vào ảnh đệm)
-    // =========================================================================
-    private void buildMountains() {
-        boolean useImg = !mountainImgs.isEmpty();
-        mountScale = useImg ? MT_LAYER_SCALE : MOUNT_SCALE;
-
-        int w = MAP3_WIDTH + PAD_X * 2;
-        int h = MAP3_HEIGHT + PAD_TOP + PAD_BOTTOM;
-        mountainLayer = new BufferedImage((int) (w * mountScale), (int) (h * mountScale),
-                                          BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g = mountainLayer.createGraphics();
-        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-        g.scale(mountScale, mountScale);
-        double offX = w / 2.0, offY = MAP3_HEIGHT / 2.0 + PAD_TOP;   // (x, y so với tâm) -> toạ độ đệm
-
-        Random rnd = new Random(11);
-        List<double[]> peaks = new ArrayList<>();   // {x, y, rộng, cao, hạt giống, là-núi-chính, chỉ số ảnh (-1 = tự vẽ)}
-        for (int r = 0; r < SIZE; r++) {
-            for (int c = 0; c < SIZE; c++) {
-                int kind = kindOf(r, c);
-                if (kind != RIM && kind != FOOT) continue;
-                if (nearGate(r, c)) continue;                     // chừa chỗ cho cổng
-                int n;
-                if (kind == RIM) n = 2 + (rnd.nextInt(3) == 0 ? 1 : 0);
-                else if (rnd.nextDouble() < 0.3) n = 1;
-                else continue;
-                double tx = (c - r) * (PlayState.TILE_W / 2.0);
-                double ty = (c + r - (SIZE - 1)) * (PlayState.TILE_H / 2.0);
-                // phía sau cao, phía trước thấp để không che vùng trồng
-                double depthF = 1.0 - 0.6 * ((r + c) / (2.0 * (SIZE - 1)));
-                for (int k = 0; k < n; k++) {
-                    double a = rnd.nextDouble() - 0.5, b = rnd.nextDouble() - 0.5;
-                    double x = tx + (b - a) * (PlayState.TILE_W / 2.0);
-                    double y = ty + (a + b) * (PlayState.TILE_H / 2.0);
-                    double pw, ph;
-                    int imgIdx = -1;
-                    if (useImg) {
-                        imgIdx = rnd.nextInt(mountainImgs.size());
-                        BufferedImage src = mountainImgs.get(imgIdx);
-                        double aspect = (double) src.getHeight() / src.getWidth();
-                        double base = MT_RIM_W_MIN + rnd.nextDouble() * (MT_RIM_W_MAX - MT_RIM_W_MIN);
-                        if (kind == FOOT) base *= MT_FOOT_SCALE;
-                        pw = base * depthF;                      // giữ nguyên tỉ lệ ảnh, phía trước thu nhỏ cả ngang lẫn dọc
-                        ph = pw * aspect;
-                        if (ph > MT_MAX_H) { pw *= MT_MAX_H / ph; ph = MT_MAX_H; }
-                    } else if (kind == RIM) {
-                        pw = 250 + rnd.nextDouble() * 170; ph = (340 + rnd.nextDouble() * 260) * depthF;
-                    } else {
-                        pw = 170 + rnd.nextDouble() * 100; ph = (110 + rnd.nextDouble() * 110) * depthF;
-                    }
-                    peaks.add(new double[]{x, y, pw, ph, rnd.nextInt(1_000_000), kind == RIM ? 1 : 0, imgIdx});
-                }
-            }
-        }
-        peaks.sort((p, q) -> Double.compare(p[1], q[1]));   // sau vẽ trước, trước vẽ sau
-
-        List<double[]> tall = new ArrayList<>();
-        for (double[] p : peaks) {
-            if (p[6] >= 0) drawImagePeak(g, mountainImgs.get((int) p[6]), p[0] + offX, p[1] + offY, p[2], p[3],
-                                         new Random((long) p[4]));
-            else           drawPeak(g, p[0] + offX, p[1] + offY, p[2], p[3], new Random((long) p[4]));
-            if (p[5] == 1 && p[3] > 300) tall.add(new double[]{p[0], p[1] - p[3], p[3]});
-        }
-        g.dispose();
-
-        tall.sort((p, q) -> Double.compare(q[2], p[2]));    // cao nhất lên đầu
-        for (int i = 0; i < Math.min(12, tall.size()); i++)
-            tips.add(new double[]{tall.get(i)[0], tall.get(i)[1]});
-    }
-
-    /** Vẽ một ngọn núi từ ảnh: chân núi đặt tại (x, y), căn giữa theo chiều ngang. g đang bị scale(mountScale). */
-    private void drawImagePeak(Graphics2D g, BufferedImage img, double x, double y, double w, double h, Random rnd) {
-        boolean flip = MT_FLIP && rnd.nextBoolean();
-
-        if (MT_SHADOW) {
-            g.setColor(new Color(20, 8, 40, 90));
-            g.fill(new Ellipse2D.Double(x - w * 0.5, y - 18, w, 44));
-        }
-
-        // thu nhỏ trước về đúng số điểm ảnh sẽ hiển thị (chia đôi dần) cho núi mịn, không răng cưa
-        int pw = Math.max(1, (int) Math.round(w * mountScale));
-        int ph = Math.max(1, (int) Math.round(h * mountScale));
-        BufferedImage scaled = scaleSmooth(img, pw, ph);
-
-        int dx = (int) Math.round(x - w / 2.0);
-        int dy = (int) Math.round(y - h + MT_SINK);
-        int iw = (int) Math.round(w), ih = (int) Math.round(h);
-        if (flip) g.drawImage(scaled, dx + iw, dy, -iw, ih, null);
-        else      g.drawImage(scaled, dx, dy, iw, ih, null);
-    }
-
-    private static BufferedImage scaleSmooth(BufferedImage src, int tw, int th) {
-        BufferedImage cur = src;
-        int cw = src.getWidth(), ch = src.getHeight();
-        while (cw / 2 >= tw && ch / 2 >= th) {
-            cw /= 2; ch /= 2;
-            cur = resizeOnce(cur, cw, ch);
-        }
-        return resizeOnce(cur, tw, th);
-    }
-
-    private static BufferedImage resizeOnce(BufferedImage src, int w, int h) {
-        BufferedImage out = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D gg = out.createGraphics();
-        gg.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-        gg.drawImage(src, 0, 0, w, h, null);
-        gg.dispose();
-        return out;
-    }
-
-    /** Một ngọn núi tím: hai mặt sáng/tối, đỉnh phủ băng tím nhạt, vài vết nứt */
-    private void drawPeak(Graphics2D g, double x, double y, double w, double h, Random rnd) {
-        double tint = 0.88 + rnd.nextDouble() * 0.24;
-        Color lit = scale(new Color(100, 78, 156), tint);
-        Color shade = scale(new Color(58, 42, 104), tint);
-        Color line = new Color(30, 20, 56);
-        Color ice = new Color(222, 208, 250);
-        Color iceShade = new Color(176, 156, 226);
-
-        double ax = x + (rnd.nextDouble() - 0.5) * w * 0.12, ay = y - h;
-
-        // chân núi mờ cho hoà vào nền
-        g.setColor(new Color(20, 8, 40, 90));
-        g.fill(new Ellipse2D.Double(x - w * 0.6, y - 20, w * 1.2, 44));
-
-        Path2D.Double body = new Path2D.Double();
-        body.moveTo(x - w / 2, y);
-        body.lineTo(x - w * 0.30, y - h * 0.40);
-        body.lineTo(x - w * 0.12, y - h * 0.68);
-        body.lineTo(ax, ay);
-        body.lineTo(x + w * 0.14, y - h * 0.70);
-        body.lineTo(x + w * 0.31, y - h * 0.38);
-        body.lineTo(x + w / 2, y);
-        body.closePath();
-        g.setColor(lit);
-        g.fill(body);
-
-        Path2D.Double right = new Path2D.Double();
-        right.moveTo(ax, ay);
-        right.lineTo(x + w * 0.14, y - h * 0.70);
-        right.lineTo(x + w * 0.31, y - h * 0.38);
-        right.lineTo(x + w / 2, y);
-        right.lineTo(x + w * 0.05, y);
-        right.lineTo(x + w * 0.01, y - h * 0.50);
-        right.closePath();
-        g.setColor(shade);
-        g.fill(right);
-
-        // đỉnh băng
-        Path2D.Double cap = new Path2D.Double();
-        cap.moveTo(ax, ay);
-        cap.lineTo(x - w * 0.12, y - h * 0.68);
-        cap.lineTo(x - w * 0.08, y - h * 0.60);
-        cap.lineTo(x - w * 0.02, y - h * 0.67);
-        cap.lineTo(x + w * 0.04, y - h * 0.59);
-        cap.lineTo(x + w * 0.10, y - h * 0.66);
-        cap.lineTo(x + w * 0.14, y - h * 0.70);
-        cap.closePath();
-        g.setColor(ice);
-        g.fill(cap);
-        Path2D.Double capShade = new Path2D.Double();
-        capShade.moveTo(ax, ay);
-        capShade.lineTo(x + w * 0.14, y - h * 0.70);
-        capShade.lineTo(x + w * 0.10, y - h * 0.66);
-        capShade.lineTo(x + w * 0.04, y - h * 0.59);
-        capShade.lineTo(x + w * 0.01, y - h * 0.62);
-        capShade.closePath();
-        g.setColor(iceShade);
-        g.fill(capShade);
-
-        g.setStroke(new BasicStroke(4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-        g.setColor(line);
-        g.draw(body);
-        g.setColor(new Color(30, 20, 56, 150));
-        g.drawLine((int) (x - w * 0.12), (int) (y - h * 0.30), (int) (x - w * 0.02), (int) (y - h * 0.06));
-        g.drawLine((int) (x + w * 0.18), (int) (y - h * 0.34), (int) (x + w * 0.28), (int) (y - h * 0.10));
     }
 
     // =========================================================================
@@ -473,23 +244,14 @@ public class EarthArea extends MapArea {
 
         drawStormClouds(g2, cx, cy, sec, flash);
         drawHalo(g2, cx, cy, sec, flash, true);           // nửa sau của vành hào quang
-        drawCloudCollar(g2, cx, cy, sec, flash, true);    // mây phía sau dãy núi
-
-        // Có ảnh núi riêng thì luôn vẽ (kể cả khi đã có ảnh nền đảo); không có ảnh núi thì chỉ vẽ núi tự vẽ khi chưa có ảnh nền
-        if (islandBgImg == null || !mountainImgs.isEmpty()) {
-            g2.drawImage(mountainLayer, cx - (int) ((MAP3_WIDTH + PAD_X * 2) / 2.0),
-                         cy - MAP3_HEIGHT / 2 - PAD_TOP,
-                         (int) Math.round(mountainLayer.getWidth() / mountScale),
-                         (int) Math.round(mountainLayer.getHeight() / mountScale), null);
-        }
+        drawCloudCollar(g2, cx, cy, sec, flash, true);    // mây phía sau đảo
 
         drawPlotBorders(g2, sec);
         drawRuneRing(g2, cx, cy, sec, orbCharge);
         drawGate(g2, sec, flash);
         if (!overlayHooked) drawOrb(g2, cx, cy, sec, orbCharge);   // dự phòng khi PlayState chưa gọi drawOverlay()
         drawHalo(g2, cx, cy, sec, flash, false);          // nửa trước của vành hào quang
-        drawCloudCollar(g2, cx, cy, sec, flash, false);   // mây phủ chân núi phía trước
-        drawPeakZaps(g2, cx, cy, sec);
+        drawCloudCollar(g2, cx, cy, sec, flash, false);   // mây phía trước đảo
         drawBolts(g2, stormInten);
         drawMotes(g2, cx, cy, sec);
         drawFlash(g2, cx, cy, flash);
@@ -665,10 +427,10 @@ public class EarthArea extends MapArea {
         }
     }
 
-    // ------------------------------ Mây bao quanh chân núi (phía ngoài) ------------------------------
+    // ------------------------------ Mây bao quanh đảo (phía ngoài) ------------------------------
     private void drawCloudCollar(Graphics2D g2, int cx, int cy, double sec, double flash, boolean back) {
         if (!SHOW_CLOUD_COLLAR) return;
-        double W = 1440 + 260, H = 720 + 140;                   // đường viền hình thoi nới rộng ra ngoài chân núi
+        double W = 1440 + 260, H = 720 + 140;                   // đường viền hình thoi nới rộng ra ngoài đảo
         double[][] corners = {{0, -H}, {W, 0}, {0, H}, {-W, 0}};
         Color body = lerp(new Color(58, 42, 104), new Color(190, 150, 250), flash * 0.8);
         Color under = lerp(new Color(34, 22, 66), new Color(150, 110, 220), flash * 0.5);
@@ -1060,10 +822,7 @@ public class EarthArea extends MapArea {
 
         double tx, ty, type;
         double roll = rnd.nextDouble();
-        if (roll < 0.5 && !tips.isEmpty()) {
-            double[] t = tips.get(rnd.nextInt(tips.size()));
-            tx = cx + t[0]; ty = cy + t[1]; type = 0;
-        } else if (roll < 0.7) {
+        if (roll < 0.35) {
             tx = cx; ty = cy - ORB_LIFT; type = 1;
         } else {
             tx = cx + (rnd.nextDouble() - 0.5) * 3600; ty = cy + (rnd.nextDouble() - 0.3) * 1000; type = 2;
@@ -1116,23 +875,6 @@ public class EarthArea extends MapArea {
         g2.setPaint(new RadialGradientPaint(new Point2D.Double(cx, cy - 300), 2600f, new float[]{0f, 1f},
                 new Color[]{new Color(215, 180, 255, (int) (70 * flash)), new Color(120, 60, 220, 0)}));
         g2.fill(new Ellipse2D.Double(cx - 2600, cy - 2900, 5200, 5200));
-    }
-
-    /** Tia điện nhỏ nháy ở đỉnh các ngọn núi cao */
-    private void drawPeakZaps(Graphics2D g2, int cx, int cy, double sec) {
-        long tick = (long) (sec * 12);
-        for (int i = 0; i < Math.min(tips.size(), 10); i++) {
-            if ((tick / 2 + i * 3) % 7 != 0) continue;
-            Random rnd = new Random(tick * 31 + i);
-            double x0 = cx + tips.get(i)[0], y0 = cy + tips.get(i)[1];
-            Path2D z = zigzag(x0, y0, x0 + (rnd.nextDouble() - 0.5) * 160, y0 - 160 - rnd.nextDouble() * 120, rnd, 5, 22);
-            g2.setStroke(new BasicStroke(12f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-            g2.setColor(new Color(170, 110, 255, 110));
-            g2.draw(z);
-            g2.setStroke(new BasicStroke(4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-            g2.setColor(new Color(250, 240, 255));
-            g2.draw(z);
-        }
     }
 
     /** Hạt điện lấp lánh bay lên từ mặt đảo */
