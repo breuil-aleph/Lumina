@@ -505,69 +505,6 @@ public class WindArea extends MapArea {
         }
     }
 
-    // TODO: thay thành cái khác
-    private void drawHalo(Graphics2D g2, int cx, int cy, double sec, boolean back) {
-        int RING_BASE = 1950;
-        int RING_DY = 120;
-        double ccx = cx, ccy = cy + RING_DY;
-        double start = back ? 0 : 180;
-
-        double[][] bands = {
-                { 1.000, 80, 150, 255, 220, 38 }, { 0.975, 36, 180, 255, 240, 90 },
-                { 0.945, 12, 220, 255, 250, 160 }, { 0.915, 58, 120, 255, 200, 60 },
-                { 0.885, 20, 190, 255, 230, 120 }, { 0.860, 8, 255, 255, 255, 140 }
-        };
-
-        for (double[] b : bands) {
-            double a = RING_BASE * b[0], bb = a / 2;
-            g2.setStroke(new BasicStroke((float) b[1], BasicStroke.CAP_BUTT, BasicStroke.JOIN_ROUND));
-            g2.setColor(new Color((int) b[2], (int) b[3], (int) b[4], (int) b[5]));
-            g2.draw(new Arc2D.Double(ccx - a, ccy - bb, a * 2, bb * 2, start, 180, Arc2D.OPEN));
-        }
-
-        for (int i = 0; i < 70; i++) {
-            double ang = frac(i * 0.618 + sec * (0.006 + 0.01 * frac(i * 0.37))) * Math.PI * 2;
-            boolean front = Math.sin(ang) > 0;
-            if (front == back)
-                continue;
-            double a = RING_BASE * (0.86 + 0.14 * frac(i * 0.377));
-            double x = ccx + Math.cos(ang) * a, y = ccy + Math.sin(ang) * a / 2;
-            float tw = (float) Math.max(0, Math.min(1, 0.45 + 0.4 * Math.sin(sec * 3 + i * 2.1)));
-            double sz = 5 + (i % 4) * 2.5;
-            g2.setColor(new Color(130, 255, 200, (int) (tw * 120)));
-            g2.fill(new Ellipse2D.Double(x - sz * 1.8, y - sz * 1.8, sz * 3.6, sz * 3.6));
-            g2.setColor(new Color(255, 255, 255, (int) (tw * 255)));
-            g2.fill(new Ellipse2D.Double(x - sz / 2, y - sz / 2, sz, sz));
-        }
-    }
-
-    private void drawSkyClouds(Graphics2D g2, int cx, int cy, double sec) {
-        double[][] clouds = {
-                { 0.55, 900, 0.013, 1.0 },
-                { 0.30, 1000, 0.011, 0.9 },
-                { 0.80, 820, 0.015, 1.1 }
-        };
-        double range = 4200, xStart = cx - 2600;
-
-        Color under = new Color(150, 220, 200);
-        Color body = new Color(245, 255, 250);
-
-        for (double[] cl : clouds) {
-            double p = frac(cl[0] + sec * cl[2]);
-            double x = xStart + p * range, y = cy + cl[1], s = cl[3];
-            float a = (float) (0.85 * Math.min(1.0, Math.min(p, 1 - p) * 6));
-            g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, a));
-
-            g2.setColor(under);
-            g2.fill(new Ellipse2D.Double(x - 260 * s, y - 20 * s, 520 * s, 90 * s));
-            g2.setColor(body);
-            g2.fill(new Ellipse2D.Double(x - 200 * s, y - 70 * s, 260 * s, 110 * s));
-            g2.fill(new Ellipse2D.Double(x - 60 * s, y - 110 * s, 300 * s, 140 * s));
-            g2.fill(new Ellipse2D.Double(x + 90 * s, y - 60 * s, 250 * s, 100 * s));
-        }
-        g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1f));
-    }
-
     private void drawCloudShadows(Graphics2D g2, int cx, int cy, double sec) {
         double[][] clouds = {
                 { 0.55, 900, 0.013, 1.0 },

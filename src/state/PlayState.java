@@ -2,12 +2,14 @@ package state;
 
 import core.GamePanel;
 import data.SaveData;
+import data.PlayerStats;
 import entity.Plant;
+import map.ImageHelper;
 import map.EarthArea;
 import map.FireArea;
-import map.ImageHelper;
 import map.WaterArea;
 import map.WindArea;
+
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
@@ -15,9 +17,13 @@ import java.awt.Polygon;
 import java.awt.Rectangle;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Random;
+
+import javax.imageio.ImageIO;
 
 public class PlayState extends GameState {
     public static final int TILE_W = 240;
@@ -26,7 +32,7 @@ public class PlayState extends GameState {
     // KHOẢNG CÁCH VỰC SÂU CHIA TÁCH CÁC ĐẢO (PIXEL)
     public static final int ISLAND_GAP = 600;
 
-    private static final double WIND_ISLAND_SCALE = 1.1; //Windmap
+    private static final double WIND_ISLAND_SCALE = 1.1; // Windmap
 
     // TOẠ ĐỘ TRỌNG TÂM CỦA ĐỀN THỜ TRUNG TÂM (ĐẢO 0)
     public static final int TEMPLE_CENTER_X = 5000;
@@ -78,6 +84,17 @@ public class PlayState extends GameState {
     private String gachaMessage = "Chọn loại Năng Lượng để Gacha (Tốn 1 NL/lần)";
     private Random random = new Random();
 
+    // Dữ liệu thống kê người chơi
+    private PlayerStats playerStats = new PlayerStats();
+
+    // Đồng hồ đếm theo giây (không phụ thuộc FPS, cực nhẹ)
+    private long lastSecondMillis;
+
+    // Quản lý Avatar trong phiên chơi
+    private String activeAvatarId = "lumi";
+    private BufferedImage[] avatarChibiImages = new BufferedImage[6];
+    private java.util.List<String> unlockedAvatarIds = new java.util.ArrayList<>();
+
     public PlayState(GameStateManager gsm) {
         this(gsm, 1.0);
     }
@@ -101,6 +118,10 @@ public class PlayState extends GameState {
         mapUnlocked[2] = false;
         mapUnlocked[3] = false;
         mapUnlocked[4] = false;
+        // Đảm bảo ban đầu luôn có Lumi
+        if (!unlockedAvatarIds.contains("lumi")) {
+            unlockedAvatarIds.add("lumi");
+        }
 
         btnCloseGacha = new Rectangle(580, 130, 40, 40);
         for (int i = 1; i <= 4; i++) {
@@ -118,18 +139,40 @@ public class PlayState extends GameState {
         gsm.getGamePanel().zoom = 0.14;
         gsm.getGamePanel().centerCameraOnMap();
         gsm.getGamePanel().clampCamera();
+
+        // Khởi động đồng hồ tính giờ
+        resetStatsTimer();
+
+        loadChibiAvatarAssets();
+    }
+
+    /**
+     * Làm mới mốc tính thời gian chơi khi quay trở lại PlayState từ các State khác
+     */
+    public void resetStatsTimer() {
+        this.lastSecondMillis = System.currentTimeMillis();
     }
 
     @Override
     public void update() {
-        // Tích luỹ năng lượng theo từng frame
+        // 1. TÍNH THỜI GIAN CHƠI THEO GIÂY
+        long now = System.currentTimeMillis();
+        if (now - lastSecondMillis >= 1000) {
+            long passedSeconds = (now - lastSecondMillis) / 1000;
+            playerStats.addPlayTimeSeconds(passedSeconds);
+            lastSecondMillis += passedSeconds * 1000;
+        }
+
+        // 2. TÍCH LUỸ NĂNG LƯỢNG THEO TỪNG FRAME
         for (int i = 1; i <= 4; i++) {
             for (int r = 0; r < ISLAND_SIZE; r++) {
                 for (int c = 0; c < ISLAND_SIZE; c++) {
                     Plant p = plants[i][r][c];
                     if (p != null) {
                         double gainPerTick = (p.getBaseEnergyPerSecond() * difficultyMultiplier) / 60.0;
-                        energies[p.getElementId()] += gainPerTick;
+                        int elemId = p.getElementId();
+                        energies[elemId] += gainPerTick;
+                        playerStats.addEnergyCollected(elemId, gainPerTick);
                     }
                 }
             }
@@ -164,10 +207,85 @@ public class PlayState extends GameState {
             drawMagicBookModal(g2);
     }
 
+    private static final String[] AVATAR_IDS = {
+            "lumi", "fire_spirit", "aqua_spirit", "terra_guard", "zephyr", "sage_ancient"
+    };
+
+    private static boolean isKnownAvatarId(String id) {
+        if (id == null) return false;
+        for (String knownId : AVATAR_IDS) {
+            if (knownId.equals(id)) return true;
+        }
+        return false;
+    }
+
+    private void normalizeAvatarData() {
+        if (unlockedAvatarIds == null) unlockedAvatarIds = new java.util.ArrayList<>();
+        unlockedAvatarIds.removeIf(id -> !isKnownAvatarId(id));
+        if (!unlockedAvatarIds.contains("lumi")) unlockedAvatarIds.add("lumi");
+        if (!isKnownAvatarId(activeAvatarId) || !unlockedAvatarIds.contains(activeAvatarId)) {
+            activeAvatarId = "lumi";
+        }
+    }
+
+    private void loadChibiAvatarAssets() {
+        for (int i = 0; i < AVATAR_IDS.length; i++) {
+            String path = "res/avt/" + AVATAR_IDS[i] + "_chibi.png";
+            try {
+                BufferedImage img = ImageIO.read(new File(path));
+                avatarChibiImages[i] = img; // ImageIO.read may return null for an unsupported/invalid image.
+                if (img == null) System.err.println("Missing/invalid avatar image: " + path + " (fallback enabled)");
+            } catch (IOException | SecurityException e) {
+                avatarChibiImages[i] = null;
+                System.err.println("Cannot load avatar image: " + path + " (fallback enabled): " + e.getMessage());
+            }
+        }
+    }
+
+    private void drawImageFit(Graphics2D g2, BufferedImage image, int x, int y, int width, int height) {
+        double scale = Math.min((double) width / image.getWidth(), (double) height / image.getHeight());
+        int drawWidth = (int) Math.round(image.getWidth() * scale);
+        int drawHeight = (int) Math.round(image.getHeight() * scale);
+        int drawX = x + (width - drawWidth) / 2;
+        int drawY = y + (height - drawHeight) / 2;
+        g2.drawImage(image, drawX, drawY, drawWidth, drawHeight, null);
+    }
+
+    private int getActiveAvatarIndex() {
+        normalizeAvatarData();
+        for (int i = 0; i < AVATAR_IDS.length; i++) {
+            if (AVATAR_IDS[i].equals(activeAvatarId)) return i;
+        }
+        return 0;
+    }
+
+    public String getActiveAvatarId() {
+        normalizeAvatarData();
+        return activeAvatarId;
+    }
+
+    public boolean isAvatarUnlocked(String id) {
+        normalizeAvatarData();
+        return isKnownAvatarId(id) && unlockedAvatarIds.contains(id);
+    }
+
+    /** Adds an avatar to the canonical in-memory unlock list. Saving to disk remains explicit. */
+    public boolean unlockAvatar(String id) {
+        if (!isKnownAvatarId(id)) return false;
+        normalizeAvatarData();
+        if (!unlockedAvatarIds.contains(id)) unlockedAvatarIds.add(id);
+        return true;
+    }
+
+    public boolean equipAvatar(String id) {
+        normalizeAvatarData();
+        if (!isKnownAvatarId(id) || !unlockedAvatarIds.contains(id)) return false;
+        activeAvatarId = id;
+        return true;
+    }
+
     private void drawFiveFloatingIslands(Graphics2D g2) {
-        // =========================================================
-        // ĐẢO 0: ĐỀN THỜ TRUNG TÂM (8x8 ô) - Độc lập ở giữa
-        // =========================================================
+        // ĐẢO 0: ĐỀN THỜ TRUNG TÂM (8x8 ô)
         for (int r = 0; r < TEMPLE_SIZE; r++) {
             for (int c = 0; c < TEMPLE_SIZE; c++) {
                 ImageHelper.drawIslandTile(g2, null, 0, r, c, new Color(45, 25, 65));
@@ -176,9 +294,7 @@ public class PlayState extends GameState {
         drawIslandLabel(g2, "ĐỀN THỜ TRUNG TÂM [NIÊM PHONG]", TEMPLE_CENTER_X, TEMPLE_CENTER_Y + 520,
                 new Color(255, 215, 0));
 
-        // =========================================================
-        // 4 ĐẢO NGUYÊN TỐ TÁCH RỜI HOÀN TOÀN
-        // =========================================================
+        // 4 ĐẢO NGUYÊN TỐ
         // 1. Đảo Lửa (Bắc)
         fireArea.drawTiles(g2);
         int fireLabelY = TEMPLE_CENTER_Y - (ISLAND_SIZE * TILE_H) - ISLAND_GAP + 200;
@@ -196,33 +312,25 @@ public class PlayState extends GameState {
         drawIslandLabel(g2, "ĐẢO ĐẤT [" + (mapUnlocked[3] ? "MỞ" : "KHÓA") + "]", earthLabelX, TEMPLE_CENTER_Y + 800,
                 mapUnlocked[3] ? new Color(205, 133, 63) : Color.GRAY);
 
-        // 4. Đảo Gió (Nam) — phóng to riêng 1.2x
+        // 4. Đảo Gió (Nam) — phóng to riêng 1.1x
         int windCx = ImageHelper.getIslandCenterX(4);
         int windCy = ImageHelper.getIslandCenterY(4);
 
         AffineTransform oldTransform = g2.getTransform();
-
         g2.translate(windCx, windCy);
         g2.scale(WIND_ISLAND_SCALE, WIND_ISLAND_SCALE);
         g2.translate(-windCx, -windCy);
 
         windArea.drawTiles(g2);
-
         g2.setTransform(oldTransform);
 
         int windLabelY = TEMPLE_CENTER_Y + (ISLAND_SIZE * TILE_H)
                 + ISLAND_GAP + (ISLAND_SIZE * TILE_H) + 100;
 
-        drawIslandLabel(
-                g2,
-                "ĐẢO GIÓ [" + (mapUnlocked[4] ? "MỞ" : "KHÓA") + "]",
-                TEMPLE_CENTER_X,
-                windLabelY,
-                mapUnlocked[4] ? Color.GREEN : Color.GRAY);
+        drawIslandLabel(g2, "ĐẢO GIÓ [" + (mapUnlocked[4] ? "MỞ" : "KHÓA") + "]",
+                TEMPLE_CENTER_X, windLabelY, mapUnlocked[4] ? Color.GREEN : Color.GRAY);
 
-        // =========================================================
-        // VIỀN SÁNG Ô ĐANG ĐƯỢC CHỌN TRÊN ĐẢO
-        // =========================================================
+        // VIỀN SÁNG Ô ĐANG ĐƯỢC CHỌN
         if (selectedIsland >= 0 && selectedRow >= 0 && selectedCol >= 0) {
             int isoX = ImageHelper.getIslandIsoX(selectedIsland, selectedRow, selectedCol);
             int isoY = ImageHelper.getIslandIsoY(selectedIsland, selectedRow, selectedCol);
@@ -233,9 +341,7 @@ public class PlayState extends GameState {
             g2.drawPolygon(poly);
         }
 
-        // =========================================================
         // VẬT THỂ & CÂY TRỒNG TRÊN 4 ĐẢO
-        // =========================================================
         fireArea.drawObjects(g2);
         waterArea.drawObjects(g2);
         earthArea.drawObjects(g2);
@@ -273,9 +379,25 @@ public class PlayState extends GameState {
         g2.fillRoundRect(btnAvatar.x, btnAvatar.y, btnAvatar.width, btnAvatar.height, 15, 15);
         g2.setColor(Color.CYAN);
         g2.drawRoundRect(btnAvatar.x, btnAvatar.y, btnAvatar.width, btnAvatar.height, 15, 15);
-        g2.setFont(new Font("Arial", Font.BOLD, 13));
-        g2.setColor(Color.WHITE);
-        g2.drawString("AVATAR", btnAvatar.x + 13, btnAvatar.y + 45);
+
+        // Lấy ảnh chibi của avatar đang trang bị
+        int activeIndex = getActiveAvatarIndex();
+        BufferedImage chibiImg = avatarChibiImages[activeIndex];
+
+        if (chibiImg != null) {
+            drawImageFit(g2, chibiImg, btnAvatar.x + 5, btnAvatar.y + 5,
+                    btnAvatar.width - 10, btnAvatar.height - 10);
+        } else {
+            // Fallback không phụ thuộc asset: nền + chữ cái đầu của avatar đang trang bị.
+            g2.setColor(new Color(45, 55, 75));
+            g2.fillOval(btnAvatar.x + 8, btnAvatar.y + 8, btnAvatar.width - 16, btnAvatar.height - 16);
+            g2.setColor(Color.WHITE);
+            g2.setFont(new Font("Arial", Font.BOLD, 30));
+            String initial = activeAvatarId.isEmpty() ? "L" : activeAvatarId.substring(0, 1).toUpperCase();
+            java.awt.FontMetrics fm = g2.getFontMetrics();
+            g2.drawString(initial, btnAvatar.x + (btnAvatar.width - fm.stringWidth(initial)) / 2,
+                    btnAvatar.y + (btnAvatar.height + fm.getAscent()) / 2 - 5);
+        }
 
         // Nút Gacha
         g2.setColor(new Color(80, 50, 20, 230));
@@ -413,6 +535,9 @@ public class PlayState extends GameState {
         }
 
         energies[elementId] -= 1.0;
+        // Ghi nhận lượt Gacha thành công vào thống kê
+        playerStats.incrementGachaRolls();
+
         int roll = random.nextInt(100);
 
         if (elementId == 1) {
@@ -493,14 +618,25 @@ public class PlayState extends GameState {
             return;
         }
 
+        // Click Avatar Button
+        if (btnAvatar.contains(x, y)) {
+            gsm.openAvatarMenu(this);
+            return;
+        }
+
+        // Click Lưu Game
         if (btnSaveGame.contains(x, y)) {
             gsm.openSaveMenu(this);
             return;
         }
+
+        // Click Gacha
         if (btnGacha.contains(x, y)) {
             isGachaOpen = true;
             return;
         }
+
+        // Click Sách phép
         if (hasMagicBook && btnReadBook.contains(x, y)) {
             isReadingBook = true;
             return;
@@ -514,6 +650,8 @@ public class PlayState extends GameState {
                 if (energies[p.getElementId()] >= cost) {
                     energies[p.getElementId()] -= cost;
                     p.upgrade();
+                    // Ghi nhận nâng cấp cây vào thống kê
+                    playerStats.incrementPlantsUpgraded();
                 }
                 return;
             }
@@ -554,6 +692,8 @@ public class PlayState extends GameState {
                     if (plants[isl][clickedRow][clickedCol] == null && seeds[isl] > 0) {
                         plants[isl][clickedRow][clickedCol] = new Plant(clickedRow, clickedCol, isl);
                         seeds[isl]--;
+                        // Ghi nhận trồng cây vào thống kê
+                        playerStats.incrementPlantsPlanted();
                     }
                 }
                 break;
@@ -570,15 +710,70 @@ public class PlayState extends GameState {
         System.arraycopy(this.energies, 0, d.energies, 0, 5);
         System.arraycopy(this.mapUnlocked, 0, d.mapUnlocked, 0, 5);
         d.hasMagicBook = this.hasMagicBook;
+
+        // Lưu thông tin thống kê người chơi (d.stats chuẩn với SaveData)
+        d.stats = this.playerStats;
+        // Lấy snapshot avatar đã được chuẩn hóa; SaveData không dùng chung list mutable.
+        normalizeAvatarData();
+        d.activeAvatarId = this.activeAvatarId;
+        d.unlockedAvatarIds = new java.util.ArrayList<>(this.unlockedAvatarIds);
+
         return d;
     }
 
     public void importSaveData(SaveData d) {
+        if (d == null) return;
         this.difficultyMultiplier = d.difficultyMultiplier;
-        System.arraycopy(d.seeds, 0, this.seeds, 0, 5);
-        System.arraycopy(d.energies, 0, this.energies, 0, 5);
-        System.arraycopy(d.mapUnlocked, 0, this.mapUnlocked, 0, 5);
+        if (d.seeds != null && d.seeds.length >= 5) System.arraycopy(d.seeds, 0, this.seeds, 0, 5);
+        if (d.energies != null && d.energies.length >= 5) System.arraycopy(d.energies, 0, this.energies, 0, 5);
+        if (d.mapUnlocked != null && d.mapUnlocked.length >= 5) System.arraycopy(d.mapUnlocked, 0, this.mapUnlocked, 0, 5);
         this.hasMagicBook = d.hasMagicBook;
+
+        // Khôi phục avatar từ save; list null/ID lạ được chuẩn hóa về Lumi.
+        this.activeAvatarId = d.activeAvatarId;
+        this.unlockedAvatarIds = (d.unlockedAvatarIds == null)
+                ? new java.util.ArrayList<>()
+                : new java.util.ArrayList<>(d.unlockedAvatarIds);
+        normalizeAvatarData();
+
+        this.playerStats = (d.stats != null) ? d.stats : new PlayerStats();
+        resetStatsTimer();
+    }
+
+    // ==========================================
+    // GETTERS & UTILITIES DÀNH CHO AVATARSTATE
+    // ==========================================
+    public PlayerStats getPlayerStats() {
+        return playerStats;
+    }
+
+    public double getEnergy(int elementId) {
+        if (elementId < 1 || elementId > 4)
+            return 0.0;
+        return energies[elementId];
+    }
+
+    public int getSeeds(int elementId) {
+        if (elementId < 1 || elementId > 4)
+            return 0;
+        return seeds[elementId];
+    }
+
+    public boolean consumeEnergy(int elementId, double amount) {
+        if (elementId >= 1 && elementId <= 4 && amount > 0 && !Double.isInfinite(amount)
+                && energies[elementId] >= amount) {
+            energies[elementId] -= amount;
+            return true;
+        }
+        return false;
+    }
+
+    public boolean consumeSeeds(int elementId, int amount) {
+        if (elementId >= 1 && elementId <= 4 && amount > 0 && seeds[elementId] >= amount) {
+            seeds[elementId] -= amount;
+            return true;
+        }
+        return false;
     }
 
     @Override
