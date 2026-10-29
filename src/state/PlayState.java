@@ -23,7 +23,6 @@ import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.Random;
 
 import javax.imageio.ImageIO;
 
@@ -81,13 +80,6 @@ public class PlayState extends GameState {
     private Rectangle btnUpgrade;
     private Rectangle btnSaveGame;
 
-    // Modal Gacha
-    private boolean isGachaOpen = false;
-    private Rectangle btnCloseGacha;
-    private Rectangle[] btnGachaRoll = new Rectangle[5];
-    private String gachaMessage = "Chọn loại Năng Lượng để Gacha (Tốn 1 NL/lần)";
-    private Random random = new Random();
-
     // Dữ liệu thống kê người chơi
     private PlayerStats playerStats = new PlayerStats();
 
@@ -130,11 +122,6 @@ public class PlayState extends GameState {
         // Đảm bảo ban đầu luôn có Lumi
         if (!unlockedAvatarIds.contains("lumi")) {
             unlockedAvatarIds.add("lumi");
-        }
-
-        btnCloseGacha = new Rectangle(580, 130, 40, 40);
-        for (int i = 1; i <= 4; i++) {
-            btnGachaRoll[i] = new Rectangle(200, 210 + (i - 1) * 65, 400, 50);
         }
 
         bgImage = ImageHelper.loadImage("res/general/background.png");
@@ -214,8 +201,9 @@ public class PlayState extends GameState {
         // 3. UI HUD
         drawStaticUI(g2);
 
-        if (isGachaOpen) drawGachaModal(g2);
-        if (isReadingBook) drawMagicBookModal(g2);
+        if (isReadingBook) {
+            drawMagicBookModal(g2);
+        }
     }
 
     private static boolean isKnownAvatarId(String id) {
@@ -430,14 +418,19 @@ public class PlayState extends GameState {
                     btnAvatar.y + (btnAvatar.height + fm.getAscent()) / 2 - 5);
         }
 
-        // Nút Gacha
-        g2.setColor(new Color(80, 50, 20, 230));
-        g2.fillRoundRect(btnGacha.x, btnGacha.y, btnGacha.width, btnGacha.height, 15, 15);
-        g2.setColor(new Color(255, 215, 0));
-        g2.drawRoundRect(btnGacha.x, btnGacha.y, btnGacha.width, btnGacha.height, 15, 15);
-        g2.setFont(new Font("Arial", Font.BOLD, 16));
-        g2.setColor(Color.YELLOW);
-        g2.drawString("GACHA", btnGacha.x + 18, btnGacha.y + 45);
+        // Nút Gacha (Mở GachaState)
+        BufferedImage gachaBtnImg = ImageHelper.getOrLoadImage("res/gachasystem/button.png");
+        if (gachaBtnImg != null) {
+            g2.drawImage(gachaBtnImg, btnGacha.x, btnGacha.y, btnGacha.width, btnGacha.height, null);
+        } else {
+            g2.setColor(new Color(80, 50, 20, 230));
+            g2.fillRoundRect(btnGacha.x, btnGacha.y, btnGacha.width, btnGacha.height, 15, 15);
+            g2.setColor(new Color(255, 215, 0));
+            g2.drawRoundRect(btnGacha.x, btnGacha.y, btnGacha.width, btnGacha.height, 15, 15);
+            g2.setFont(new Font("Arial", Font.BOLD, 16));
+            g2.setColor(Color.YELLOW);
+            g2.drawString("GACHA", btnGacha.x + 18, btnGacha.y + 45);
+        }
 
         // Nút Sách Phép
         if (hasMagicBook) {
@@ -479,57 +472,16 @@ public class PlayState extends GameState {
             Plant p = plants[selectedIsland][selectedRow][selectedCol];
             if (p != null && p.getLevel() < 3) {
                 int cost = p.getUpgradeCost();
-                g2.setColor(new Color(40, 120, 60));
-                g2.fillRoundRect(btnUpgrade.x, btnUpgrade.y, btnUpgrade.width, btnUpgrade.height, 10, 10);
-                g2.setColor(Color.WHITE);
-                g2.drawRoundRect(btnUpgrade.x, btnUpgrade.y, btnUpgrade.width, btnUpgrade.height, 10, 10);
-                g2.setFont(new Font("Arial", Font.BOLD, 14));
-                g2.drawString("Nâng Lv." + (p.getLevel() + 1) + " (" + cost + " NL)", btnUpgrade.x + 15, btnUpgrade.y + 28);
+                if (energies[p.getElementId()] >= cost) {
+                    g2.setColor(new Color(40, 120, 60));
+                    g2.fillRoundRect(btnUpgrade.x, btnUpgrade.y, btnUpgrade.width, btnUpgrade.height, 10, 10);
+                    g2.setColor(Color.WHITE);
+                    g2.drawRoundRect(btnUpgrade.x, btnUpgrade.y, btnUpgrade.width, btnUpgrade.height, 10, 10);
+                    g2.setFont(new Font("Arial", Font.BOLD, 14));
+                    g2.drawString("Nâng Lv." + (p.getLevel() + 1) + " (" + cost + " NL)", btnUpgrade.x + 15, btnUpgrade.y + 28);
+                }
             }
         }
-    }
-
-    private void drawGachaModal(Graphics2D g2) {
-        g2.setColor(new Color(0, 0, 0, 180));
-        g2.fillRect(0, 0, GamePanel.WIDTH, GamePanel.HEIGHT);
-
-        int bx = 160, by = 110, bw = 480, bh = 400;
-        g2.setColor(new Color(25, 30, 45));
-        g2.fillRoundRect(bx, by, bw, bh, 20, 20);
-        g2.setColor(new Color(255, 215, 0));
-        g2.drawRoundRect(bx, by, bw, bh, 20, 20);
-
-        g2.setColor(Color.RED);
-        g2.fillRoundRect(btnCloseGacha.x, btnCloseGacha.y, btnCloseGacha.width, btnCloseGacha.height, 10, 10);
-        g2.setColor(Color.WHITE);
-        g2.setFont(new Font("Arial", Font.BOLD, 18));
-        g2.drawString("X", btnCloseGacha.x + 14, btnCloseGacha.y + 26);
-
-        g2.setColor(Color.YELLOW);
-        g2.setFont(new Font("Arial", Font.BOLD, 22));
-        g2.drawString("VÒNG QUAY NGUYÊN TỐ", bx + 110, by + 45);
-
-        String[] titles = {
-                "Gacha Bằng NL Lửa (50% Hụt | 49% Hạt 1 | 1% Hạt 2)",
-                "Gacha Bằng NL Nước (70% Hạt 1 | 29% Hạt 2 | 1% Hạt 3)",
-                "Gacha Bằng NL Đất (30% H1 | 40% H2 | 29% H3 | 1% H4)",
-                "Gacha Bằng NL Gió (20% H1 | 20% H2 | 25% H3 | 34% H4 | 1% SÁCH)"
-        };
-        Color[] btnColors = { new Color(180, 50, 40), new Color(30, 100, 180), new Color(139, 85, 40), new Color(40, 140, 90) };
-
-        for (int i = 1; i <= 4; i++) {
-            Rectangle r = btnGachaRoll[i];
-            g2.setColor(btnColors[i - 1]);
-            g2.fillRoundRect(r.x, r.y, r.width, r.height, 10, 10);
-            g2.setColor(Color.WHITE);
-            g2.drawRoundRect(r.x, r.y, r.width, r.height, 10, 10);
-            g2.setFont(new Font("Arial", Font.BOLD, 12));
-            g2.drawString(titles[i - 1], r.x + 15, r.y + 30);
-        }
-
-        g2.setColor(Color.WHITE);
-        g2.setFont(new Font("Arial", Font.BOLD, 13));
-        g2.drawString(gachaMessage, bx + 25, by + 375);
     }
 
     private void drawMagicBookModal(Graphics2D g2) {
@@ -557,65 +509,28 @@ public class PlayState extends GameState {
         g2.drawString("[Click bất kỳ đâu để đóng sách]", bx + 180, by + 390);
     }
 
-    private void rollGacha(int elementId) {
-        if (energies[elementId] < 1.0) {
-            gachaMessage = "Không đủ Năng Lượng! Cần 1.0 NL loại này.";
-            return;
-        }
-
-        energies[elementId] -= 1.0;
-        playerStats.incrementGachaRolls();
-
-        int roll = random.nextInt(100);
-
-        if (elementId == 1) {
-            if (roll < 50) gachaMessage = "Không nhận được gì cả!";
-            else if (roll < 99) { seeds[1]++; gachaMessage = "Nhận được: 1 Hạt Giống Lửa!"; }
-            else { seeds[2]++; mapUnlocked[2] = true; gachaMessage = "XUẤT SẮC! MỞ KHÓA ĐẢO NƯỚC!"; }
-        } else if (elementId == 2) {
-            if (roll < 70) { seeds[1]++; gachaMessage = "Nhận được: 1 Hạt Giống Lửa."; }
-            else if (roll < 99) { seeds[2]++; gachaMessage = "Nhận được: 1 Hạt Giống Nước."; }
-            else { seeds[3]++; mapUnlocked[3] = true; gachaMessage = "TUYỆT VỜI! MỞ KHÓA ĐẢO ĐẤT!"; }
-        } else if (elementId == 3) {
-            if (roll < 30) { seeds[1]++; gachaMessage = "Nhận được: 1 Hạt Giống Lửa."; }
-            else if (roll < 70) { seeds[2]++; gachaMessage = "Nhận được: 1 Hạt Giống Nước."; }
-            else if (roll < 99) { seeds[3]++; gachaMessage = "Nhận được: 1 Hạt Giống Đất."; }
-            else { seeds[4]++; mapUnlocked[4] = true; gachaMessage = "KỲ DIỆU! MỞ KHÓA ĐẢO GIÓ!"; }
-        } else if (elementId == 4) {
-            if (roll < 20) { seeds[1]++; gachaMessage = "Nhận được: 1 Hạt Lửa."; }
-            else if (roll < 40) { seeds[2]++; gachaMessage = "Nhận được: 1 Hạt Nước."; }
-            else if (roll < 65) { seeds[3]++; gachaMessage = "Nhận được: 1 Hạt Đất."; }
-            else if (roll < 99) { seeds[4]++; gachaMessage = "Nhận được: 1 Hạt Gió."; }
-            else { hasMagicBook = true; gachaMessage = "HUYỀN THOẠI! Nhận QUYỂN SÁCH PHÉP!"; }
-        }
-    }
-
     @Override
     public void mousePressed(int x, int y) {
-        if (isReadingBook) { isReadingBook = false; return; }
-        if (isGachaOpen) {
-            if (btnCloseGacha.contains(x, y)) { isGachaOpen = false; return; }
-            for (int i = 1; i <= 4; i++) {
-                if (btnGachaRoll[i].contains(x, y)) { rollGacha(i); return; }
-            }
+        if (isReadingBook) {
+            isReadingBook = false;
             return;
         }
 
-        // Click Avatar Button
+        // Click Avatar Button -> Mở AvatarState
         if (btnAvatar.contains(x, y)) {
             gsm.openAvatarMenu(this);
+            return;
+        }
+
+        // Click Gacha Button -> Mở GachaState riêng biệt
+        if (btnGacha.contains(x, y)) {
+            gsm.openGachaMenu(this);
             return;
         }
 
         // Click Lưu Game
         if (btnSaveGame.contains(x, y)) {
             gsm.openSaveMenu(this);
-            return;
-        }
-
-        // Click Gacha
-        if (btnGacha.contains(x, y)) {
-            isGachaOpen = true;
             return;
         }
 
@@ -770,8 +685,24 @@ public class PlayState extends GameState {
     }
 
     // ==========================================
-    // GETTERS & UTILITIES DÀNH CHO AVATARSTATE
+    // GETTERS & UTILITIES DÀNH CHO AVATAR & GACHA
     // ==========================================
+    public int[] getSeedsArray() {
+        return seeds;
+    }
+
+    public double[] getEnergiesArray() {
+        return energies;
+    }
+
+    public boolean[] getMapUnlockedArray() {
+        return mapUnlocked;
+    }
+
+    public void unlockMagicBook() {
+        this.hasMagicBook = true;
+    }
+
     public PlayerStats getPlayerStats() {
         return playerStats;
     }

@@ -12,8 +12,8 @@ public class GameStateManager {
     public static final int CHARACTER_SELECT = 2;
     public static final int STORY = 3;
     public static final int PLAY = 4;
-
     public static final int AVATAR = 5;
+    public static final int GACHA = 6;
 
     public GameStateManager(GamePanel gamePanel) {
         this.gamePanel = gamePanel;
@@ -53,6 +53,11 @@ public class GameStateManager {
         currentState = new AvatarState(this, currentPlay);
     }
 
+    // ĐÃ SỬA: Gán thẳng đối tượng GachaState vào currentState
+    public void openGachaMenu(PlayState playState) {
+        currentState = new GachaState(this, playState);
+    }
+
     public void draw(Graphics2D g2) {
         if (currentState != null)
             currentState.draw(g2);
@@ -72,7 +77,6 @@ public class GameStateManager {
         return gamePanel;
     }
 
-    // Thêm các hàm sau vào GameStateManager.java:
     public void openSaveMenu(PlayState currentPlay) {
         currentState = new SaveLoadState(this, SaveLoadState.MODE_SAVE, currentPlay);
     }
@@ -81,7 +85,7 @@ public class GameStateManager {
         currentState = new SaveLoadState(this, SaveLoadState.MODE_LOAD, null);
     }
 
-    // tận dụng dùng cho avatar menu
+    // Tận dụng dùng cho avatar menu và gacha menu khi bấm quay lại
     public void resumePlayState(PlayState playState) {
         currentState = playState;
     }
