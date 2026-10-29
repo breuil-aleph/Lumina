@@ -24,23 +24,25 @@ public class PlayState extends GameState {
     public static final int TILE_H = 120;
 
     // KHOẢNG CÁCH VỰC SÂU CHIA TÁCH CÁC ĐẢO (PIXEL)
-    public static final int ISLAND_GAP = 600; 
+    public static final int ISLAND_GAP = 600;
+
+    private static final double WIND_ISLAND_SCALE = 1.1; //Windmap
 
     // TOẠ ĐỘ TRỌNG TÂM CỦA ĐỀN THỜ TRUNG TÂM (ĐẢO 0)
     public static final int TEMPLE_CENTER_X = 5000;
     public static final int TEMPLE_CENTER_Y = 3500;
-    public static final int TEMPLE_SIZE = 8;  // Đảo Đền 8x8 ô
+    public static final int TEMPLE_SIZE = 8; // Đảo Đền 8x8 ô
     public static final int ISLAND_SIZE = 12; // 4 Đảo nguyên tố 12x12 ô
 
     // KHUNG BOUNDING BOX CHO CAMERA CLAMPING
-    public static final double MAP_TOTAL_WIDTH  = 11000;
+    public static final double MAP_TOTAL_WIDTH = 11000;
     public static final double MAP_TOTAL_HEIGHT = 8000;
-    public static final double MAP_BOUND_LEFT   = TEMPLE_CENTER_X - (MAP_TOTAL_WIDTH / 2.0);
-    public static final double MAP_BOUND_RIGHT  = TEMPLE_CENTER_X + (MAP_TOTAL_WIDTH / 2.0);
-    public static final double MAP_BOUND_TOP    = TEMPLE_CENTER_Y - (MAP_TOTAL_HEIGHT / 2.0);
+    public static final double MAP_BOUND_LEFT = TEMPLE_CENTER_X - (MAP_TOTAL_WIDTH / 2.0);
+    public static final double MAP_BOUND_RIGHT = TEMPLE_CENTER_X + (MAP_TOTAL_WIDTH / 2.0);
+    public static final double MAP_BOUND_TOP = TEMPLE_CENTER_Y - (MAP_TOTAL_HEIGHT / 2.0);
     public static final double MAP_BOUND_BOTTOM = TEMPLE_CENTER_Y + (MAP_TOTAL_HEIGHT / 2.0);
-    public static final double MAP_CENTER_X     = TEMPLE_CENTER_X;
-    public static final double MAP_CENTER_Y     = TEMPLE_CENTER_Y;
+    public static final double MAP_CENTER_X = TEMPLE_CENTER_X;
+    public static final double MAP_CENTER_Y = TEMPLE_CENTER_Y;
 
     private BufferedImage bgImage;
     private FireArea fireArea;
@@ -156,8 +158,10 @@ public class PlayState extends GameState {
         // 3. UI HUD
         drawStaticUI(g2);
 
-        if (isGachaOpen) drawGachaModal(g2);
-        if (isReadingBook) drawMagicBookModal(g2);
+        if (isGachaOpen)
+            drawGachaModal(g2);
+        if (isReadingBook)
+            drawMagicBookModal(g2);
     }
 
     private void drawFiveFloatingIslands(Graphics2D g2) {
@@ -169,7 +173,8 @@ public class PlayState extends GameState {
                 ImageHelper.drawIslandTile(g2, null, 0, r, c, new Color(45, 25, 65));
             }
         }
-        drawIslandLabel(g2, "ĐỀN THỜ TRUNG TÂM [NIÊM PHONG]", TEMPLE_CENTER_X, TEMPLE_CENTER_Y + 520, new Color(255, 215, 0));
+        drawIslandLabel(g2, "ĐỀN THỜ TRUNG TÂM [NIÊM PHONG]", TEMPLE_CENTER_X, TEMPLE_CENTER_Y + 520,
+                new Color(255, 215, 0));
 
         // =========================================================
         // 4 ĐẢO NGUYÊN TỐ TÁCH RỜI HOÀN TOÀN
@@ -182,17 +187,38 @@ public class PlayState extends GameState {
         // 2. Đảo Nước (Đông)
         waterArea.drawTiles(g2);
         int waterLabelX = TEMPLE_CENTER_X + (ISLAND_SIZE * TILE_W / 2) + ISLAND_GAP;
-        drawIslandLabel(g2, "ĐẢO NƯỚC [" + (mapUnlocked[2] ? "MỞ" : "KHÓA") + "]", waterLabelX, TEMPLE_CENTER_Y + 800, mapUnlocked[2] ? Color.CYAN : Color.GRAY);
+        drawIslandLabel(g2, "ĐẢO NƯỚC [" + (mapUnlocked[2] ? "MỞ" : "KHÓA") + "]", waterLabelX, TEMPLE_CENTER_Y + 800,
+                mapUnlocked[2] ? Color.CYAN : Color.GRAY);
 
         // 3. Đảo Đất (Tây)
         earthArea.drawTiles(g2);
         int earthLabelX = TEMPLE_CENTER_X - (ISLAND_SIZE * TILE_W / 2) - ISLAND_GAP;
-        drawIslandLabel(g2, "ĐẢO ĐẤT [" + (mapUnlocked[3] ? "MỞ" : "KHÓA") + "]", earthLabelX, TEMPLE_CENTER_Y + 800, mapUnlocked[3] ? new Color(205, 133, 63) : Color.GRAY);
+        drawIslandLabel(g2, "ĐẢO ĐẤT [" + (mapUnlocked[3] ? "MỞ" : "KHÓA") + "]", earthLabelX, TEMPLE_CENTER_Y + 800,
+                mapUnlocked[3] ? new Color(205, 133, 63) : Color.GRAY);
 
-        // 4. Đảo Gió (Nam)
+        // 4. Đảo Gió (Nam) — phóng to riêng 1.2x
+        int windCx = ImageHelper.getIslandCenterX(4);
+        int windCy = ImageHelper.getIslandCenterY(4);
+
+        AffineTransform oldTransform = g2.getTransform();
+
+        g2.translate(windCx, windCy);
+        g2.scale(WIND_ISLAND_SCALE, WIND_ISLAND_SCALE);
+        g2.translate(-windCx, -windCy);
+
         windArea.drawTiles(g2);
-        int windLabelY = TEMPLE_CENTER_Y + (ISLAND_SIZE * TILE_H) + ISLAND_GAP + (ISLAND_SIZE * TILE_H) + 100;
-        drawIslandLabel(g2, "ĐẢO GIÓ [" + (mapUnlocked[4] ? "MỞ" : "KHÓA") + "]", TEMPLE_CENTER_X, windLabelY, mapUnlocked[4] ? Color.GREEN : Color.GRAY);
+
+        g2.setTransform(oldTransform);
+
+        int windLabelY = TEMPLE_CENTER_Y + (ISLAND_SIZE * TILE_H)
+                + ISLAND_GAP + (ISLAND_SIZE * TILE_H) + 100;
+
+        drawIslandLabel(
+                g2,
+                "ĐẢO GIÓ [" + (mapUnlocked[4] ? "MỞ" : "KHÓA") + "]",
+                TEMPLE_CENTER_X,
+                windLabelY,
+                mapUnlocked[4] ? Color.GREEN : Color.GRAY);
 
         // =========================================================
         // VIỀN SÁNG Ô ĐANG ĐƯỢC CHỌN TRÊN ĐẢO
@@ -218,18 +244,19 @@ public class PlayState extends GameState {
         for (int i = 1; i <= 4; i++) {
             for (int r = 0; r < ISLAND_SIZE; r++) {
                 for (int c = 0; c < ISLAND_SIZE; c++) {
-                    if (plants[i][r][c] != null) plants[i][r][c].draw(g2);
+                    if (plants[i][r][c] != null)
+                        plants[i][r][c].draw(g2);
                 }
             }
         }
-        earthArea.drawOverlay(g2); 
+        earthArea.drawOverlay(g2);
+        windArea.drawOverlay(g2);
     }
 
     private Polygon getDiamondPolygon(int centerX, int centerY, int w, int h) {
         return new Polygon(
-            new int[]{centerX, centerX + w / 2, centerX, centerX - w / 2},
-            new int[]{centerY - h / 2, centerY, centerY + h / 2, centerY}, 4
-        );
+                new int[] { centerX, centerX + w / 2, centerX, centerX - w / 2 },
+                new int[] { centerY - h / 2, centerY, centerY + h / 2, centerY }, 4);
     }
 
     private void drawIslandLabel(Graphics2D g2, String text, int x, int y, Color c) {
@@ -304,7 +331,8 @@ public class PlayState extends GameState {
                 g2.setColor(Color.WHITE);
                 g2.drawRoundRect(btnUpgrade.x, btnUpgrade.y, btnUpgrade.width, btnUpgrade.height, 10, 10);
                 g2.setFont(new Font("Arial", Font.BOLD, 14));
-                g2.drawString("Nâng Lv." + (p.getLevel() + 1) + " (" + cost + " NL)", btnUpgrade.x + 15, btnUpgrade.y + 28);
+                g2.drawString("Nâng Lv." + (p.getLevel() + 1) + " (" + cost + " NL)", btnUpgrade.x + 15,
+                        btnUpgrade.y + 28);
             }
         }
     }
@@ -330,12 +358,13 @@ public class PlayState extends GameState {
         g2.drawString("VÒNG QUAY NGUYÊN TỐ", bx + 110, by + 45);
 
         String[] titles = {
-            "Gacha Bằng NL Lửa (50% Hụt | 49% Hạt 1 | 1% Hạt 2)",
-            "Gacha Bằng NL Nước (70% Hạt 1 | 29% Hạt 2 | 1% Hạt 3)",
-            "Gacha Bằng NL Đất (30% H1 | 40% H2 | 29% H3 | 1% H4)",
-            "Gacha Bằng NL Gió (20% H1 | 20% H2 | 25% H3 | 34% H4 | 1% SÁCH)"
+                "Gacha Bằng NL Lửa (50% Hụt | 49% Hạt 1 | 1% Hạt 2)",
+                "Gacha Bằng NL Nước (70% Hạt 1 | 29% Hạt 2 | 1% Hạt 3)",
+                "Gacha Bằng NL Đất (30% H1 | 40% H2 | 29% H3 | 1% H4)",
+                "Gacha Bằng NL Gió (20% H1 | 20% H2 | 25% H3 | 34% H4 | 1% SÁCH)"
         };
-        Color[] btnColors = { new Color(180, 50, 40), new Color(30, 100, 180), new Color(139, 85, 40), new Color(40, 140, 90) };
+        Color[] btnColors = { new Color(180, 50, 40), new Color(30, 100, 180), new Color(139, 85, 40),
+                new Color(40, 140, 90) };
 
         for (int i = 1; i <= 4; i++) {
             Rectangle r = btnGachaRoll[i];
@@ -387,41 +416,95 @@ public class PlayState extends GameState {
         int roll = random.nextInt(100);
 
         if (elementId == 1) {
-            if (roll < 50) gachaMessage = "Không nhận được gì cả!";
-            else if (roll < 99) { seeds[1]++; gachaMessage = "Nhận được: 1 Hạt Giống Lửa!"; }
-            else { seeds[2]++; mapUnlocked[2] = true; gachaMessage = "XUẤT SẮC! MỞ KHÓA ĐẢO NƯỚC!"; }
+            if (roll < 50)
+                gachaMessage = "Không nhận được gì cả!";
+            else if (roll < 99) {
+                seeds[1]++;
+                gachaMessage = "Nhận được: 1 Hạt Giống Lửa!";
+            } else {
+                seeds[2]++;
+                mapUnlocked[2] = true;
+                gachaMessage = "XUẤT SẮC! MỞ KHÓA ĐẢO NƯỚC!";
+            }
         } else if (elementId == 2) {
-            if (roll < 70) { seeds[1]++; gachaMessage = "Nhận được: 1 Hạt Giống Lửa."; }
-            else if (roll < 99) { seeds[2]++; gachaMessage = "Nhận được: 1 Hạt Giống Nước."; }
-            else { seeds[3]++; mapUnlocked[3] = true; gachaMessage = "TUYỆT VỜI! MỞ KHÓA ĐẢO ĐẤT!"; }
+            if (roll < 70) {
+                seeds[1]++;
+                gachaMessage = "Nhận được: 1 Hạt Giống Lửa.";
+            } else if (roll < 99) {
+                seeds[2]++;
+                gachaMessage = "Nhận được: 1 Hạt Giống Nước.";
+            } else {
+                seeds[3]++;
+                mapUnlocked[3] = true;
+                gachaMessage = "TUYỆT VỜI! MỞ KHÓA ĐẢO ĐẤT!";
+            }
         } else if (elementId == 3) {
-            if (roll < 30) { seeds[1]++; gachaMessage = "Nhận được: 1 Hạt Giống Lửa."; }
-            else if (roll < 70) { seeds[2]++; gachaMessage = "Nhận được: 1 Hạt Giống Nước."; }
-            else if (roll < 99) { seeds[3]++; gachaMessage = "Nhận được: 1 Hạt Giống Đất."; }
-            else { seeds[4]++; mapUnlocked[4] = true; gachaMessage = "KỲ DIỆU! MỞ KHÓA ĐẢO GIÓ!"; }
+            if (roll < 30) {
+                seeds[1]++;
+                gachaMessage = "Nhận được: 1 Hạt Giống Lửa.";
+            } else if (roll < 70) {
+                seeds[2]++;
+                gachaMessage = "Nhận được: 1 Hạt Giống Nước.";
+            } else if (roll < 99) {
+                seeds[3]++;
+                gachaMessage = "Nhận được: 1 Hạt Giống Đất.";
+            } else {
+                seeds[4]++;
+                mapUnlocked[4] = true;
+                gachaMessage = "KỲ DIỆU! MỞ KHÓA ĐẢO GIÓ!";
+            }
         } else if (elementId == 4) {
-            if (roll < 20) { seeds[1]++; gachaMessage = "Nhận được: 1 Hạt Lửa."; }
-            else if (roll < 40) { seeds[2]++; gachaMessage = "Nhận được: 1 Hạt Nước."; }
-            else if (roll < 65) { seeds[3]++; gachaMessage = "Nhận được: 1 Hạt Đất."; }
-            else if (roll < 99) { seeds[4]++; gachaMessage = "Nhận được: 1 Hạt Gió."; }
-            else { hasMagicBook = true; gachaMessage = "HUYỀN THOẠI! Nhận QUYỂN SÁCH PHÉP!"; }
+            if (roll < 20) {
+                seeds[1]++;
+                gachaMessage = "Nhận được: 1 Hạt Lửa.";
+            } else if (roll < 40) {
+                seeds[2]++;
+                gachaMessage = "Nhận được: 1 Hạt Nước.";
+            } else if (roll < 65) {
+                seeds[3]++;
+                gachaMessage = "Nhận được: 1 Hạt Đất.";
+            } else if (roll < 99) {
+                seeds[4]++;
+                gachaMessage = "Nhận được: 1 Hạt Gió.";
+            } else {
+                hasMagicBook = true;
+                gachaMessage = "HUYỀN THOẠI! Nhận QUYỂN SÁCH PHÉP!";
+            }
         }
     }
 
     @Override
     public void mousePressed(int x, int y) {
-        if (isReadingBook) { isReadingBook = false; return; }
+        if (isReadingBook) {
+            isReadingBook = false;
+            return;
+        }
         if (isGachaOpen) {
-            if (btnCloseGacha.contains(x, y)) { isGachaOpen = false; return; }
+            if (btnCloseGacha.contains(x, y)) {
+                isGachaOpen = false;
+                return;
+            }
             for (int i = 1; i <= 4; i++) {
-                if (btnGachaRoll[i].contains(x, y)) { rollGacha(i); return; }
+                if (btnGachaRoll[i].contains(x, y)) {
+                    rollGacha(i);
+                    return;
+                }
             }
             return;
         }
 
-        if (btnSaveGame.contains(x, y)) { gsm.openSaveMenu(this); return; }
-        if (btnGacha.contains(x, y)) { isGachaOpen = true; return; }
-        if (hasMagicBook && btnReadBook.contains(x, y)) { isReadingBook = true; return; }
+        if (btnSaveGame.contains(x, y)) {
+            gsm.openSaveMenu(this);
+            return;
+        }
+        if (btnGacha.contains(x, y)) {
+            isGachaOpen = true;
+            return;
+        }
+        if (hasMagicBook && btnReadBook.contains(x, y)) {
+            isReadingBook = true;
+            return;
+        }
 
         // Nâng cấp cây trên đảo
         if (selectedIsland >= 1 && selectedIsland <= 4 && selectedRow >= 0 && selectedCol >= 0) {
@@ -498,5 +581,7 @@ public class PlayState extends GameState {
         this.hasMagicBook = d.hasMagicBook;
     }
 
-    @Override public void mouseMoved(int x, int y) {}
+    @Override
+    public void mouseMoved(int x, int y) {
+    }
 }

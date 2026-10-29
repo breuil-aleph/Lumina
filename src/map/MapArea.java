@@ -18,6 +18,11 @@ public abstract class MapArea {
     // Vẽ cây cối/vật trang trí trên các ô đất
     public abstract void drawObjects(Graphics2D g2);
 
+    // Kiểm tra xem ô (r, c) có cho phép trồng cây và chọn ô hay không
+    public boolean isPlantable(int r, int c) {
+        return true; 
+    }
+
     public boolean isUnlocked() { return isUnlocked; }
     public void setUnlocked(boolean unlocked) { this.isUnlocked = unlocked; }
 }
