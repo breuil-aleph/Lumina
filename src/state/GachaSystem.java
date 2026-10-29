@@ -1,6 +1,7 @@
 package state;
 
 import core.GamePanel;
+import data.PlayerStats;
 import map.ImageHelper;
 
 import java.awt.Color;
@@ -15,33 +16,16 @@ import java.util.Random;
 
 /**
  * Hệ thống Gacha dùng ảnh. Toàn bộ ảnh nằm trong res/gachasystem/
- *
- *   button.png      nút GACHA ở HUD góc phải dưới
- *   bg.png          nền toàn màn hình gacha
- *   bar_1..4.png    4 thanh chọn banner (Lửa, Nước, Đất, Gió)
- *   banner_bg.png   khung banner hiện ra khi bấm thanh
- *   btn_x1.png      nút quay x1
- *   btn_x10.png     nút quay x10
- *   result_bg.png   khung kết quả (hình chữ nhật ngang)
- *   seed_1..4.png   hạt giống Lửa, Nước, Đất, Gió
- *   none.png        (tuỳ chọn) ô "hụt"
- *   book.png        (tuỳ chọn) Sách Phép
- *   close.png       (tuỳ chọn) nút đóng
- *   back.png        (tuỳ chọn) nút quay lại
- *
- * Ảnh nào chưa có thì tự vẽ hình tạm để vẫn chạy được.
  */
 public class GachaSystem {
     private static final String DIR = "res/gachasystem/";
 
     // ---- Chi phí mỗi lượt quay (đơn vị NL của banner đang chọn) ----
-    // Muốn mỗi banner một giá khác nhau thì sửa 2 mảng này (index 1..4)
     private static final int[] COST_X1  = { 0, 1, 1, 1, 1 };
     private static final int[] COST_X10 = { 0, 10, 10, 10, 10 };
 
     // ---- Bảng tỉ lệ: ngưỡng cộng dồn (trên 100) và vật phẩm tương ứng ----
     // Vật phẩm: 0 = hụt, 1..4 = hạt Lửa/Nước/Đất/Gió, 5 = Sách Phép
-    // Phần tử cuối của mỗi hàng là phần thưởng hiếm (mở khoá đảo / sách)
     private static final int[][] CUT = {
             null,
             { 50, 99, 100 },
@@ -78,6 +62,7 @@ public class GachaSystem {
     private final double[] energies;
     private final boolean[] mapUnlocked;
     private final Runnable onGetMagicBook;
+    private final PlayerStats playerStats;
 
     private boolean open = false;
     private int screen = SCREEN_BANNERS;
@@ -99,11 +84,12 @@ public class GachaSystem {
     private final Rectangle btnX10 = new Rectangle(430, 390, 180, 60);
     private final Rectangle resultBox = new Rectangle(60, 220, 680, 170);
 
-    public GachaSystem(int[] seeds, double[] energies, boolean[] mapUnlocked, Runnable onGetMagicBook) {
+    public GachaSystem(int[] seeds, double[] energies, boolean[] mapUnlocked, Runnable onGetMagicBook, PlayerStats playerStats) {
         this.seeds = seeds;
         this.energies = energies;
         this.mapUnlocked = mapUnlocked;
         this.onGetMagicBook = onGetMagicBook;
+        this.playerStats = playerStats;
 
         for (int i = 1; i <= 4; i++) {
             bars[i] = new Rectangle(150, 130 + (i - 1) * 100, 500, 80);
@@ -114,15 +100,21 @@ public class GachaSystem {
         return open;
     }
 
+    public void setOpen(boolean open) {
+        this.open = open;
+        if (open) {
+            this.screen = SCREEN_BANNERS;
+            this.message = "";
+        }
+    }
+
     // =====================================================================
     // Xử lý click: trả về true nếu Gacha đã "ăn" cú click
     // =====================================================================
     public boolean handleClick(int x, int y) {
         if (!open) {
             if (btnOpen.contains(x, y)) {
-                open = true;
-                screen = SCREEN_BANNERS;
-                message = "";
+                setOpen(true);
                 return true;
             }
             return false;
@@ -130,7 +122,7 @@ public class GachaSystem {
 
         if (btnClose.contains(x, y)) {
             open = false;
-            return true;
+            return false; // Trả về false để State biết là cần đóng màn hình Gacha
         }
 
         switch (screen) {
@@ -160,13 +152,13 @@ public class GachaSystem {
                 screen = SCREEN_BANNER;
                 break;
         }
-        return true; // modal đang mở thì chặn mọi click bên dưới
+        return true;
     }
 
     // =====================================================================
     // Vẽ
     // =====================================================================
-    /** Nút GACHA ở HUD góc phải dưới */
+    /** Nút GACHA ở HUD góc phải dưới (nếu vẽ ở HUD) */
     public void drawButton(Graphics2D g2) {
         BufferedImage img = img("button.png");
         if (img != null) {
@@ -180,11 +172,9 @@ public class GachaSystem {
         }
     }
 
-    /** Toàn bộ giao diện gacha, chỉ vẽ khi đang mở */
+    /** Toàn bộ giao diện gacha */
     public void drawModal(Graphics2D g2) {
-        if (!open) return;
-
-        // Nền
+        // Nền tối
         BufferedImage bg = img("bg.jpg");
         if (bg != null) {
             g2.drawImage(bg, 0, 0, GamePanel.WIDTH, GamePanel.HEIGHT, null);
@@ -291,7 +281,7 @@ public class GachaSystem {
     /** Vẽ 1 vật phẩm: ảnh nếu có, không thì hình tròn màu + chữ */
     private void drawItem(Graphics2D g2, int item, int x, int y, int size) {
         String file = item >= 1 && item <= 4 ? "seed_" + item + ".png"
-                : item == 5 ? "book.png" : "none.";
+                : item == 5 ? "book.png" : "none.png";
         BufferedImage im = img(file);
         if (im != null) {
             g2.drawImage(im, x, y, size, size, null);
@@ -316,6 +306,12 @@ public class GachaSystem {
             return;
         }
         energies[selected] -= cost;
+
+        if (playerStats != null) {
+            for (int i = 0; i < times; i++) {
+                playerStats.incrementGachaRolls();
+            }
+        }
 
         lastResults.clear();
         lastNotes.clear();
@@ -343,20 +339,18 @@ public class GachaSystem {
                 lastNotes.add("MỞ KHÓA ĐẢO " + ELEMENT[item].toUpperCase() + "!");
             }
         } else if (item == 5) {
-            onGetMagicBook.run();
+            if (onGetMagicBook != null) {
+                onGetMagicBook.run();
+            }
             lastNotes.add("HUYỀN THOẠI! Nhận QUYỂN SÁCH PHÉP!");
         }
         return item;
     }
 
-    // =====================================================================
-    // Tiện ích vẽ
-    // =====================================================================
     private BufferedImage img(String name) {
         return ImageHelper.getOrLoadImage(DIR + name);
     }
 
-    /** Vẽ nút bằng ảnh; không có ảnh thì vẽ hình chữ nhật màu kèm chữ */
     private void drawImageButton(Graphics2D g2, String file, Rectangle r, Color fallback, String label) {
         BufferedImage im = img(file);
         if (im != null) {
