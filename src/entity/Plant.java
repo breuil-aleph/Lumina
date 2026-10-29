@@ -2,17 +2,16 @@ package entity;
 
 import map.ImageHelper;
 import state.PlayState;
-
 import java.awt.AlphaComposite;
-import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Composite;
 import java.awt.Font;
+import java.awt.FontMetrics;
 import java.awt.Graphics2D;
+import java.awt.Paint;
 import java.awt.RadialGradientPaint;
-import java.awt.Stroke;
+import java.awt.RenderingHints;
 import java.awt.geom.AffineTransform;
-import java.awt.geom.Ellipse2D;
 import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
 
@@ -20,16 +19,19 @@ public class Plant {
     private int row;
     private int col;
     private int elementId; // 1: Fire, 2: Water, 3: Earth, 4: Wind
-    private int level = 1;
+    private int level = 1;  // 1, 2, 3
 
     private BufferedImage imgLv1, imgLv2, imgLv3;
-    private long upgradeStartTime = 0;
-    private static final double UPGRADE_DURATION = 1.4;
+
+    // Biến điều khiển hoạt ảnh riêng cho cây Map 1
+    private double animTick;
+    private double spawnScale = 0.2;
 
     public Plant(int row, int col, int elementId) {
         this.row = row;
         this.col = col;
         this.elementId = elementId;
+        this.animTick = (row * 1.7 + col * 2.3);
         loadImages();
     }
 
@@ -40,36 +42,33 @@ public class Plant {
             case 3 -> "map3";
             default -> "map4";
         };
-
-        imgLv1 = ImageHelper.loadImage("res/" + folder + "/plant_lv1.png");
-        imgLv2 = ImageHelper.loadImage("res/" + folder + "/plant_lv2.png");
-        imgLv3 = ImageHelper.loadImage("res/" + folder + "/plant_lv3.png");
+        imgLv1 = ImageHelper.getOrLoadImage("res/" + folder + "/plant_lv1.png");
+        imgLv2 = ImageHelper.getOrLoadImage("res/" + folder + "/plant_lv2.png");
+        imgLv3 = ImageHelper.getOrLoadImage("res/" + folder + "/plant_lv3.png");
     }
 
     public double getBaseEnergyPerSecond() {
-        return switch (level) {
-            case 1 -> 0.1;
-            case 2 -> 0.2;
-            default -> 0.5;
-        };
+        if (level == 1) return 0.1;
+        if (level == 2) return 0.2;
+        return 0.5;
     }
 
     public int getUpgradeCost() {
-        return switch (level) {
-            case 1 -> 3;
-            case 2 -> 10;
-            default -> 0;
-        };
+        if (level == 1) return 3;
+        if (level == 2) return 10;
+        return 0;
     }
 
     public boolean upgrade() {
-        if (level >= 3) {
-            return false;
+        if (level < 3) {
+            level++;
+            spawnScale = 0.55;
+            if ((level == 2 && imgLv2 == null) || (level == 3 && imgLv3 == null)) {
+                loadImages();
+            }
+            return true;
         }
-
-        level++;
-        upgradeStartTime = System.currentTimeMillis();
-        return true;
+        return false;
     }
 
     public void draw(Graphics2D g2) {
@@ -82,187 +81,180 @@ public class Plant {
             default -> imgLv3;
         };
 
-        int drawW = 100 + level * 25;
-        int drawH = 120 + level * 30;
-        int drawX = isoX - drawW / 2;
-        int drawY = isoY - drawH + PlayState.TILE_H / 2;
+        // =====================================================================
+        // NẾU KHÔNG PHẢI MAP 1 (LỬA): VẼ MẶC ĐỊNH NGUYÊN BẢN CỦA NHÓM
+        // =====================================================================
+        if (elementId != 1) {
+            if (curImg != null) {
+                int drawW = 100 + (level * 25);
+                int drawH = 120 + (level * 30);
+                int drawX = isoX - (drawW / 2);
+                int drawY = isoY - drawH + (PlayState.TILE_H / 2);
+                g2.drawImage(curImg, drawX, drawY, drawW, drawH, null);
+            } else {
+                int size = 30 + (level * 20);
+                int drawY = isoY - size + (PlayState.TILE_H / 4);
+                Color c = switch (elementId) {
+                    case 2 -> Color.CYAN;
+                    case 3 -> new Color(139, 69, 19);
+                    default -> Color.GREEN;
+                };
+                g2.setColor(c);
+                g2.fillOval(isoX - size / 2, drawY, size, size);
+                g2.setColor(Color.WHITE);
+                g2.drawOval(isoX - size / 2, drawY, size, size);
+            }
 
-        Composite oldComp = g2.getComposite();
-        Stroke oldStroke = g2.getStroke();
-        AffineTransform oldTrans = g2.getTransform();
-
-        double elapsed = (System.currentTimeMillis() - upgradeStartTime) / 1000.0;
-        boolean isUpgrading = elapsed >= 0 && elapsed < UPGRADE_DURATION;
-
-        // Tâm chân cây dùng chung cho aura và vòng elip.
-        double baseY = isoY + PlayState.TILE_H / 2.0;
-
-        if (isUpgrading) {
-            drawUpgradeAuraBack(g2, isoX, baseY, baseY, drawW, drawH, elapsed);
+            g2.setFont(new Font("Arial", Font.BOLD, 14));
+            g2.setColor(Color.BLACK);
+            g2.drawString("Lv." + level, isoX - 12, isoY - 70 - (level * 15) + 1);
+            g2.setColor(Color.YELLOW);
+            g2.drawString("Lv." + level, isoX - 13, isoY - 70 - (level * 15));
+            return;
         }
 
-        // Cây trên đảo Gió đung đưa quanh gốc, không làm gốc cây trượt.
-        if (elementId == 4) {
-            double sec = System.currentTimeMillis() / 1000.0;
-            double sway = Math.sin(sec * 2.5 + (row + col) * 0.5) * 0.12;
-
-            g2.translate(isoX, baseY);
-            g2.shear(sway, 0);
-            g2.translate(-isoX, -baseY);
+        // =====================================================================
+        // CHỈ DÀNH RIÊNG CHO CÂY MAP 1 (elementId == 1 - ĐẢO LỬA)
+        // =====================================================================
+        animTick += 0.055;
+        if (spawnScale < 1.0) {
+            spawnScale = Math.min(1.0, spawnScale + 0.06);
         }
+
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+        // ĐỒNG BỘ TỌA ĐỘ GỐC CÂY: Điểm chạm đất nằm khớp 100% với đáy ảnh cây
+        int footY = isoY + (PlayState.TILE_H / 2);
+        Color fireColor = new Color(255, 120, 20);
+
+        // 1. TÍNH KÍCH THƯỚC THEO ĐÚNG TỈ LỆ GỐC CỦA ẢNH (KHÔNG BAO GIỜ BỊ DẸT)
+        int targetH = switch (level) {
+            case 1 -> 135;
+            case 2 -> 180;
+            default -> 245; // Lv.3 cao lớn vượt trội
+        };
+
+        double breatheScale = 1.0 + Math.sin(animTick * 2.0) * 0.02;
+        int baseH = (int) (targetH * spawnScale * breatheScale);
+        int baseW;
+
+        if (curImg != null && curImg.getHeight() > 0) {
+            // Lấy đúng tỉ lệ Rộng / Cao của file ảnh PNG để không làm biến dạng cây
+            double aspectRatio = (double) curImg.getWidth() / curImg.getHeight();
+            baseW = (int) Math.round(baseH * aspectRatio);
+        } else {
+            baseW = (int) (baseH * 0.85);
+        }
+
+        // 2. Vẽ bóng đổ mềm ngay dưới đáy gốc cây (nâng lên 8px để ôm vừa khít rễ)
+        drawSoftNaturalShadow(g2, isoX, footY - 8, baseW);
+
+        // 3. Thân cây đung đưa nhẹ quanh đúng gốc (isoX, footY)
+        double swayAngleDeg = Math.sin(animTick) * (1.8 + level * 0.3);
+
+        AffineTransform oldTransform = g2.getTransform();
+        g2.rotate(Math.toRadians(swayAngleDeg), isoX, footY);
 
         if (curImg != null) {
-            g2.drawImage(curImg, drawX, drawY, drawW, drawH, null);
+            int drawX = isoX - (baseW / 2);
+            int drawY = footY - baseH;
+            g2.drawImage(curImg, drawX, drawY, baseW, baseH, null);
         } else {
-            int size = 30 + level * 20;
-            int fallbackY = isoY - size + PlayState.TILE_H / 4;
-
-            g2.setColor(getThemeColor());
-            g2.fillOval(isoX - size / 2, fallbackY, size, size);
+            int size = (int) ((40 + (level * 22)) * spawnScale);
+            int drawY = footY - size;
+            g2.setColor(fireColor);
+            g2.fillOval(isoX - size / 2, drawY, size, size);
             g2.setColor(Color.WHITE);
-            g2.drawOval(isoX - size / 2, fallbackY, size, size);
+            g2.drawOval(isoX - size / 2, drawY, size, size);
         }
 
-        if (isUpgrading) {
-            drawUpgradeParticlesFront(g2, isoX, drawY, drawH, elapsed);
-        }
+        g2.setTransform(oldTransform);
 
-        // Khôi phục transform trước khi vẽ nhãn cấp độ.
+        // 4. Đom đóm lửa bay quanh tán cây
+        drawElementalFireflies(g2, isoX, footY, baseH, fireColor);
+
+        // 5. Nhãn Level trên đầu cây
+        drawLevelBadge(g2, isoX, footY - baseH - 12, fireColor);
+    }
+
+    /**
+     * Vẽ bóng đổ mềm tự nhiên tỉ lệ theo bề ngang thực tế của cây
+     */
+    private void drawSoftNaturalShadow(Graphics2D g2, int shadowCenterX, int shadowCenterY, int treeWidth) {
+        int radius = Math.max(10, (int) (treeWidth * 0.36));
+
+        AffineTransform oldTrans = g2.getTransform();
+        Paint oldPaint = g2.getPaint();
+
+        // Nén trục Y tỉ lệ 2:1 chuẩn Isometric để bóng trải phẳng trên mặt sàn
+        g2.translate(shadowCenterX, shadowCenterY);
+        g2.scale(1.0, 0.5);
+
+        RadialGradientPaint shadowGrad = new RadialGradientPaint(
+            new Point2D.Float(0, 0),
+            radius,
+            new float[]{0.0f, 0.5f, 1.0f},
+            new Color[]{
+                new Color(0, 0, 0, 125), // Đậm vừa phải dưới đáy rễ
+                new Color(0, 0, 0, 50),  // Mờ dần ra xung quanh
+                new Color(0, 0, 0, 0)    // Tan biến hoàn toàn, không có viền
+            }
+        );
+
+        g2.setPaint(shadowGrad);
+        g2.fillOval(-radius, -radius, radius * 2, radius * 2);
+
+        g2.setPaint(oldPaint);
         g2.setTransform(oldTrans);
-        g2.setComposite(oldComp);
-        g2.setStroke(oldStroke);
-
-        drawLevelBadge(g2, isoX, drawY);
     }
 
-    private void drawLevelBadge(Graphics2D g2, int isoX, int drawY) {
-        String text = "Lv." + level;
-        g2.setFont(new Font("Arial", Font.BOLD, 12));
+    private void drawElementalFireflies(Graphics2D g2, int isoX, int footY, int treeHeight, Color elemColor) {
+        Composite oldComp = g2.getComposite();
+        int particleCount = 2 + level * 2;
 
-        int textW = g2.getFontMetrics().stringWidth(text);
-        int badgeW = textW + 14;
-        int badgeH = 18;
-        int badgeX = isoX - badgeW / 2;
-        int badgeY = drawY - badgeH - 4;
+        for (int i = 0; i < particleCount; i++) {
+            double pPhase = animTick * 1.3 + i * (Math.PI * 2 / particleCount);
+            double heightRatio = ((animTick * 0.4 + i * 0.27) % 1.0);
+            double orbitRadius = (28 + level * 12) * Math.sin(heightRatio * Math.PI);
 
-        g2.setColor(new Color(15, 25, 35, 210));
-        g2.fillRoundRect(badgeX, badgeY, badgeW, badgeH, 8, 8);
+            int px = (int) (isoX + Math.cos(pPhase) * orbitRadius);
+            int py = (int) (footY - heightRatio * (treeHeight * 0.92));
 
-        Color borderCol = switch (level) {
-            case 1 -> new Color(180, 220, 255);
-            case 2 -> new Color(120, 255, 180);
-            default -> new Color(255, 215, 0);
-        };
+            float alpha = (float) Math.sin(heightRatio * Math.PI);
+            g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, Math.max(0f, Math.min(1f, alpha))));
 
-        g2.setColor(borderCol);
-        g2.drawRoundRect(badgeX, badgeY, badgeW, badgeH, 8, 8);
+            g2.setColor(elemColor);
+            g2.fillOval(px - 6, py - 6, 12, 12);
 
-        g2.setColor(Color.YELLOW);
-        g2.drawString(text, badgeX + 7, badgeY + 13);
-    }
-
-    private void drawUpgradeAuraBack(
-            Graphics2D g2, double cx, double cy, double ringCy,
-            int w, int h, double elapsed) {
-
-        float t = (float) Math.max(0.0, Math.min(1.0, elapsed / UPGRADE_DURATION));
-        float fade = (float) Math.pow(1.0 - t, 1.3);
-
-        Color theme = getThemeColor();
-        Color core = getCoreColor();
-
-        float radius = (float) (w * (0.8 + 0.6 * Math.sin(t * Math.PI)));
-        int alphaCore = Math.min(255, (int) (220 * fade));
-        int alphaEdge = Math.min(255, (int) (130 * fade));
-
-        RadialGradientPaint auraGlow = new RadialGradientPaint(
-                new Point2D.Double(cx, cy),
-                radius,
-                new float[]{0f, 0.45f, 1f},
-                new Color[]{
-                        new Color(core.getRed(), core.getGreen(), core.getBlue(), alphaCore),
-                        new Color(theme.getRed(), theme.getGreen(), theme.getBlue(), alphaEdge),
-                        new Color(theme.getRed(), theme.getGreen(), theme.getBlue(), 0)
-                });
-
-        g2.setPaint(auraGlow);
-        g2.fill(new Ellipse2D.Double(
-                cx - radius, cy - radius, radius * 2, radius * 2));
-
-        // Tách tâm vòng elip khỏi tâm quầng sáng để dễ căn chỉnh độc lập.
-        double ringW = w * (0.4 + 1.4 * t);
-        double ringH = ringW * 0.5;
-
-        g2.setStroke(new BasicStroke(
-                Math.max(1.5f, 6f * fade),
-                BasicStroke.CAP_ROUND,
-                BasicStroke.JOIN_ROUND));
-
-        g2.setColor(new Color(
-                core.getRed(), core.getGreen(), core.getBlue(),
-                Math.max(0, Math.min(255, (int) (230 * fade)))));
-
-        g2.draw(new Ellipse2D.Double(
-                cx - ringW / 2.0,
-                ringCy - 40 - ringH / 2.0,
-                ringW,
-                ringH));
-    }
-
-    private void drawUpgradeParticlesFront(
-            Graphics2D g2, int cx, int topY, int h, double elapsed) {
-
-        float t = (float) Math.max(0.0, Math.min(1.0, elapsed / UPGRADE_DURATION));
-        float fade = 1.0f - t;
-        Color core = getCoreColor();
-
-        g2.setColor(new Color(
-                core.getRed(), core.getGreen(), core.getBlue(),
-                Math.max(0, Math.min(255, (int) (240 * fade)))));
-
-        for (int i = 0; i < 8; i++) {
-            double angle = i * Math.PI / 4.0 + t * 2.0;
-            double dist = 20 + 35 * Math.sin(i * 1.5 + t * 4.0);
-            double px = cx + Math.cos(angle) * dist;
-            double py = topY + h - t * (h + 30) + i * 10;
-            double size = 4 + (i % 3) * 2;
-
-            g2.fill(new Ellipse2D.Double(
-                    px - size / 2.0, py - size / 2.0, size, size));
+            g2.setColor(new Color(255, 255, 220));
+            g2.fillOval(px - 2, py - 2, 5, 5);
         }
+        g2.setComposite(oldComp);
     }
 
-    private Color getThemeColor() {
-        return switch (elementId) {
-            case 1 -> new Color(255, 90, 30);
-            case 2 -> new Color(50, 180, 255);
-            case 3 -> new Color(185, 100, 255);
-            default -> new Color(80, 245, 180);
-        };
+    private void drawLevelBadge(Graphics2D g2, int centerX, int badgeY, Color elemColor) {
+        String text = (level == 3) ? "★ MAX Lv.3" : "Lv." + level;
+        Font font = new Font("Arial", Font.BOLD, 13);
+        g2.setFont(font);
+        FontMetrics fm = g2.getFontMetrics();
+        int textW = fm.stringWidth(text);
+        int boxW = textW + 16;
+        int boxH = 22;
+        int boxX = centerX - boxW / 2;
+        int boxY = badgeY - boxH / 2 + (int) (Math.sin(animTick * 2.0) * 3);
+
+        g2.setColor(new Color(15, 20, 30, 200));
+        g2.fillRoundRect(boxX, boxY, boxW, boxH, 10, 10);
+
+        g2.setColor(level == 3 ? new Color(255, 215, 0) : elemColor);
+        g2.drawRoundRect(boxX, boxY, boxW, boxH, 10, 10);
+
+        g2.setColor(level == 3 ? new Color(255, 240, 120) : Color.WHITE);
+        g2.drawString(text, boxX + 8, boxY + 15);
     }
 
-    private Color getCoreColor() {
-        return switch (elementId) {
-            case 1 -> new Color(255, 235, 160);
-            case 2 -> new Color(215, 245, 255);
-            case 3 -> new Color(245, 225, 255);
-            default -> new Color(220, 255, 240);
-        };
-    }
-
-    public int getRow() {
-        return row;
-    }
-
-    public int getCol() {
-        return col;
-    }
-
-    public int getLevel() {
-        return level;
-    }
-
-    public int getElementId() {
-        return elementId;
-    }
+    public int getRow() { return row; }
+    public int getCol() { return col; }
+    public int getLevel() { return level; }
+    public int getElementId() { return elementId; }
 }
