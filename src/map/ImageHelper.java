@@ -36,51 +36,71 @@ public class ImageHelper {
     }
 
     // =========================================================================
-    // CÔNG THỨC TOẠ ĐỘ TÂM ĐẢO TÁCH RỜI CHUẨN ISOMETRIC (KHÔNG BỊ CHÈN NHAU)
+    // CÔNG THỨC TOẠ ĐỘ TÂM ĐẢO THEO HÌNH NGŨ GIÁC (4 CÁNH DƯỚI, TRÊN TRỐNG)
+    // TƯƠNG ỨNG VỚI 4 VÙNG MÀU TRONG ẢNH VŨ TRỤ:
+    // - Tâm (0): Đền thờ trung tâm
+    // - Đỉnh trên (90 độ): Trống (vùng ánh sáng vàng)
+    // - Góc Tây Bắc (~162 độ): Đỏ/Cam -> Đảo Lửa (Island 1)
+    // - Góc Đông Bắc (~18 độ): Xanh Dương -> Đảo Nước (Island 2)
+    // - Góc Tây Nam (~234 độ): Sấm Tím -> Đảo Đất/Sét (Island 3)
+    // - Góc Đông Nam (~306 độ): Xanh Lá -> Đảo Gió (Island 4)
     // =========================================================================
-    
+
+    // Khoảng cách bán kính từ tâm đến các đảo vệ tinh (tính theo pixel)
+    // Có thể tăng/giảm số này để các đảo xa nhau hơn hoặc gần tâm hơn
+    private static final double PENTAGON_RADIUS = 4200.0;
+
     /**
      * Lấy toạ độ tâm X của từng đảo trong không gian World
-     * islandId: 0: Đền, 1: Lửa (Bắc), 2: Nước (Đông), 3: Đất (Tây), 4: Gió (Nam)
      */
     public static int getIslandCenterX(int islandId) {
         int cx = PlayState.TEMPLE_CENTER_X;
 
-        // Bán kính ngang Đền (8 ô) = 4 * TILE_W
-        // Bán kính ngang Đảo Con (12 ô) = 6 * TILE_W
-        // Khoảng cách tối thiểu để 2 đỉnh không chạm nhau = (4 + 6) * TILE_W
-        // Cộng thêm khe vực thẳm PlayState.ISLAND_GAP
-        int distIsoX = ((PlayState.TEMPLE_SIZE + PlayState.ISLAND_SIZE) / 2) * PlayState.TILE_W + PlayState.ISLAND_GAP;
-
+        // Góc tính theo độ toán học (0 = Phải, 90 = Trên, 180 = Trái, 270 = Dưới)
+        // Hệ toạ độ màn hình máy tính: Y hướng xuống dưới nên toạ độ Y sẽ lấy -sin(angle)
         return switch (islandId) {
-            case 1 -> cx;             // Đảo 1 (Lửa - Bắc): Thẳng hàng tâm X
-            case 2 -> cx + distIsoX;  // Đảo 2 (Nước - Đông): Đẩy sang phải
-            case 3 -> cx - distIsoX;  // Đảo 3 (Đất - Tây): Đẩy sang trái
-            case 4 -> cx;             // Đảo 4 (Gió - Nam): Thẳng hàng tâm X
-            default -> cx;            // Đảo 0 (Đền): Nằm chính giữa
+            // Đảo 1 (Lửa - Đỏ): Góc trên bên trái (Tây Bắc ~ 162 độ)
+            case 1 -> cx + (int) Math.round(PENTAGON_RADIUS * Math.cos(Math.toRadians(162)));
+
+            // Đảo 2 (Nước - Xanh dương): Góc trên bên phải (Đông Bắc ~ 18 độ)
+            case 2 -> cx + (int) Math.round(PENTAGON_RADIUS * Math.cos(Math.toRadians(18)));
+
+            // Đảo 3 (Đất/Sét - Tím): Góc dưới bên trái (Tây Nam ~ 234 độ)
+            case 3 -> cx + (int) Math.round(PENTAGON_RADIUS * Math.cos(Math.toRadians(234)));
+
+            // Đảo 4 (Gió - Xanh lá): Góc dưới bên phải (Đông Nam ~ 306 độ)
+            case 4 -> cx + (int) Math.round(PENTAGON_RADIUS * Math.cos(Math.toRadians(306)));
+
+            // Đảo 0 (Đền thờ): Nằm chính giữa tâm
+            default -> cx;
         };
     }
 
     /**
      * Lấy toạ độ tâm Y của từng đảo trong không gian World
+     * Lưu ý: Nhân hệ số 0.5 theo tỉ lệ phối cảnh Isometric 2:1 (TILE_H / TILE_W)
      */
+    // Trong ImageHelper.java
+
+// Độ dời hạ thấp các đảo xuống (muốn đảo xuống thấp bao nhiêu px thì tăng số này lên)
+    public static final int GLOBAL_OFFSET_Y = 1800; 
+
     public static int getIslandCenterY(int islandId) {
-        int cy = PlayState.TEMPLE_CENTER_Y;
+    // Thêm GLOBAL_OFFSET_Y vào tâm gốc
+    int cy = PlayState.TEMPLE_CENTER_Y + GLOBAL_OFFSET_Y; 
+    double isoRatioY = 0.5;
 
-        // Khoảng cách trục dọc theo tỉ lệ 2:1 của lưới Isometric
-        int distIsoY = ((PlayState.TEMPLE_SIZE + PlayState.ISLAND_SIZE) / 2) * PlayState.TILE_H + PlayState.ISLAND_GAP;
-
-        return switch (islandId) {
-            case 1 -> cy - distIsoY;  // Đảo 1 (Lửa - Bắc): Đẩy lên trên
-            case 2 -> cy;             // Đảo 2 (Nước - Đông): Ngang hàng tâm Đền
-            case 3 -> cy;             // Đảo 3 (Đất - Tây): Ngang hàng tâm Đền
-            case 4 -> cy + distIsoY;  // Đảo 4 (Gió - Nam): Đẩy xuống dưới
-            default -> cy;            // Đảo 0 (Đền): Nằm chính giữa
-        };
+    return switch (islandId) {
+        case 1 -> cy - (int) Math.round(PENTAGON_RADIUS * isoRatioY * Math.sin(Math.toRadians(162)));
+        case 2 -> cy - (int) Math.round(PENTAGON_RADIUS * isoRatioY * Math.sin(Math.toRadians(18)));
+        case 3 -> cy - (int) Math.round(PENTAGON_RADIUS * isoRatioY * Math.sin(Math.toRadians(234)));
+        case 4 -> cy - (int) Math.round(PENTAGON_RADIUS * isoRatioY * Math.sin(Math.toRadians(306)));
+        default -> cy;
+    };
     }
 
     // =========================================================================
-    // TÍNH TOẠ ĐỘ ISOMETRIC TỪNG Ô CỦA TỪNG ĐẢO (NEO THEO TRỌNG TÂM)
+    // TÍNH TOẠ ĐỘ ISOMETRIC TỪNG Ô CỦA TỪNG ĐẢO (NEO THEO TRỌNG TÂM ĐẢO)
     // =========================================================================
 
     /**
@@ -90,7 +110,6 @@ public class ImageHelper {
         int islandCenterX = getIslandCenterX(islandId);
         int size = (islandId == 0) ? PlayState.TEMPLE_SIZE : PlayState.ISLAND_SIZE;
 
-        // Khoảng lệch của ô (r, c) so với tâm của đảo đó
         double offsetC = c - (size - 1) / 2.0;
         double offsetR = r - (size - 1) / 2.0;
 

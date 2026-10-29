@@ -9,18 +9,16 @@ public abstract class MapArea {
         this.isUnlocked = isUnlocked;
     }
 
-    // Nạp ảnh
     public abstract void loadImages();
-
-    // Vẽ toàn bộ ô đất nền của khu vực
     public abstract void drawTiles(Graphics2D g2);
-
-    // Vẽ cây cối/vật trang trí trên các ô đất
     public abstract void drawObjects(Graphics2D g2);
 
-    // Kiểm tra xem ô (r, c) có cho phép trồng cây và chọn ô hay không
+    /**
+     * Kiểm tra ô (r, c) có cho phép trồng cây hay không
+     * Mặc định là cho trồng nếu không override
+     */
     public boolean isPlantable(int r, int c) {
-        return true; 
+        return true;
     }
 
     public boolean isUnlocked() { return isUnlocked; }

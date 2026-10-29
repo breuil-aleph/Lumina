@@ -15,6 +15,7 @@ public class SaveLoadState extends GameState {
     private PlayState playStateRef; // Tham chiếu dùng khi lưu
 
     private Rectangle[] slotBoxes = new Rectangle[4];
+    private SaveData[] slotPreviews = new SaveData[4]; // Cache preview để tránh đọc đĩa liên tục mỗi frame
     private Rectangle btnBack;
     private String statusMessage = "";
 
@@ -35,10 +36,17 @@ public class SaveLoadState extends GameState {
         slotBoxes[3] = new Rectangle(startX, 370, boxW, boxH);
 
         btnBack = new Rectangle(StartX(140), 490, 140, 45);
+        refreshSlotPreviews();
     }
 
     private int StartX(int width) {
         return (800 - width) / 2;
+    }
+
+    private void refreshSlotPreviews() {
+        for (int i = 1; i <= 3; i++) {
+            slotPreviews[i] = SaveManager.hasSave(i) ? SaveManager.load(i) : null;
+        }
     }
 
     @Override
@@ -59,6 +67,7 @@ public class SaveLoadState extends GameState {
         for (int i = 1; i <= 3; i++) {
             Rectangle r = slotBoxes[i];
             boolean exists = SaveManager.hasSave(i);
+            SaveData preview = slotPreviews[i];
 
             g2.setColor(exists ? new Color(35, 55, 80) : new Color(30, 35, 45));
             g2.fillRoundRect(r.x, r.y, r.width, r.height, 15, 15);
@@ -71,14 +80,22 @@ public class SaveLoadState extends GameState {
 
             g2.setFont(new Font("Arial", Font.PLAIN, 14));
             if (exists) {
-                SaveData preview = SaveManager.load(i);
                 g2.setColor(new Color(180, 220, 255));
-                g2.drawString("Thời gian: " + (preview != null ? preview.saveTime : "Không rõ"), r.x + 130, r.y + 35);
-                int mapCount = 0;
-                if (preview != null) {
-                    for (int m = 1; m <= 4; m++) if (preview.mapUnlocked[m]) mapCount++;
+                if (preview == null) {
+                    g2.drawString("Không thể đọc dữ liệu lưu", r.x + 130, r.y + 45);
+                    continue;
                 }
-                g2.drawString("Khu vực đã mở: " + mapCount + "/4 Map", r.x + 130, r.y + 60);
+                g2.drawString("Thời gian: " + (preview.saveTime != null ? preview.saveTime : "Không rõ"), r.x + 130, r.y + 35);
+                
+                int mapCount = 0;
+                if (preview.mapUnlocked != null) {
+                    for (int m = 1; m <= 4 && m < preview.mapUnlocked.length; m++) {
+                        if (preview.mapUnlocked[m]) mapCount++;
+                    }
+                }
+                
+                String avatarInfo = (preview.activeAvatarId != null) ? (" | Avatar: " + preview.activeAvatarId.toUpperCase()) : "";
+                g2.drawString("Khu vực: " + mapCount + "/4 Map" + avatarInfo, r.x + 130, r.y + 60);
             } else {
                 g2.setColor(Color.GRAY);
                 g2.drawString("[Trống - Chưa có dữ liệu]", r.x + 130, r.y + 50);
@@ -119,14 +136,21 @@ public class SaveLoadState extends GameState {
                         SaveData data = playStateRef.exportSaveData();
                         boolean success = SaveManager.save(data, i);
                         statusMessage = success ? "Lưu vào Slot " + i + " thành công!" : "Lỗi khi lưu!";
+                        if (success) {
+                            slotPreviews[i] = data; // Cập nhật ngay preview mà không cần đọc lại ổ đĩa
+                        }
                     }
                 } else { // MODE_LOAD
                     if (SaveManager.hasSave(i)) {
                         SaveData data = SaveManager.load(i);
                         if (data != null) {
                             gsm.loadGameFromSave(data);
+                        } else {
+                            slotPreviews[i] = null;
+                            statusMessage = "Không thể đọc dữ liệu ở Slot " + i + "!";
                         }
                     } else {
+                        slotPreviews[i] = null;
                         statusMessage = "Slot " + i + " chưa có dữ liệu để tải!";
                     }
                 }
@@ -134,5 +158,7 @@ public class SaveLoadState extends GameState {
             }
         }
     }
-    @Override public void mouseMoved(int x, int y) {}
+
+    @Override
+    public void mouseMoved(int x, int y) {}
 }

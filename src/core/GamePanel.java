@@ -10,10 +10,8 @@ import java.awt.Graphics2D;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
 
-public class GamePanel extends JPanel implements Runnable, KeyListener {
+public class GamePanel extends JPanel implements Runnable {
     public static final int WIDTH = 800;
     public static final int HEIGHT = 600;
 
@@ -28,11 +26,6 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
     public double cameraY = 0;
     public double zoom = 0.22;
 
-    // Giới hạn zoom tối thiểu và tối đa
-    public static final double MIN_ZOOM = 0.08;
-    public static final double MAX_ZOOM = 1.5;
-    private static final double ZOOM_FACTOR = 1.15;
-
     public GamePanel() {
         this.setPreferredSize(new Dimension(WIDTH, HEIGHT));
         this.setBackground(Color.BLACK);
@@ -41,7 +34,6 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
         this.gsm = new GameStateManager(this);
         setupMouseListeners();
-        this.addKeyListener(this); // Đăng ký lắng nghe sự kiện bàn phím
         clampCamera();
     }
 
@@ -85,9 +77,6 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
             @Override
             public void mousePressed(MouseEvent e) {
-                // Tự động nhận lại focus bàn phím khi click vào game
-                requestFocusInWindow();
-
                 lastX = e.getX();
                 lastY = e.getY();
                 gsm.mousePressed(e.getX(), e.getY());
@@ -103,7 +92,6 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
 
                 clampCamera();
             }
-
             @Override
             public void mouseMoved(MouseEvent e) {
                 gsm.mouseMoved(e.getX(), e.getY());
@@ -118,10 +106,14 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
                 double worldXBefore = (mouseX / zoom) - cameraX;
                 double worldYBefore = (mouseY / zoom) - cameraY;
 
+                // Giới hạn tỉ lệ zoom tối thiểu 0.08x và tối đa 1.5x
+                double minZoom = 0.08;
+                double maxZoom = 1.5;
+
                 if (e.getWheelRotation() < 0) {
-                    zoom = Math.min(MAX_ZOOM, zoom * ZOOM_FACTOR);
+                    zoom = Math.min(maxZoom, zoom * 1.15);
                 } else {
-                    zoom = Math.max(MIN_ZOOM, zoom / ZOOM_FACTOR);
+                    zoom = Math.max(minZoom, zoom / 1.15);
                 }
 
                 // Cập nhật lại góc nhìn bám sát vị trí con trỏ chuột
@@ -136,65 +128,6 @@ public class GamePanel extends JPanel implements Runnable, KeyListener {
         addMouseMotionListener(ma);
         addMouseWheelListener(ma);
     }
-
-    // =========================================================================
-    // XỬ LÝ PHÓNG TO / THU NHỎ QUA PHÍM BÀN PHÍM (+ VÀ -)
-    // =========================================================================
-    @Override
-    public void keyPressed(KeyEvent e) {
-        int keyCode = e.getKeyCode();
-        char keyChar = e.getKeyChar();
-
-        // Nhận diện phím CỘNG: dấu +, dấu = (cùng phím với +), hoặc phím + trên bàn phím số
-        boolean isPlus = (keyCode == KeyEvent.VK_PLUS || 
-                          keyCode == KeyEvent.VK_EQUALS || 
-                          keyCode == KeyEvent.VK_ADD || 
-                          keyChar == '+' || keyChar == '=');
-
-        // Nhận diện phím TRỪ: dấu -, phím - trên bàn phím số
-        boolean isMinus = (keyCode == KeyEvent.VK_MINUS || 
-                           keyCode == KeyEvent.VK_SUBTRACT || 
-                           keyChar == '-');
-
-        if (isPlus) {
-            zoomAtCenter(ZOOM_FACTOR); // Phóng to
-        } else if (isMinus) {
-            zoomAtCenter(1.0 / ZOOM_FACTOR); // Thu nhỏ
-        }
-    }
-
-    /**
-     * Phóng to / thu nhỏ lấy tâm màn hình làm điểm neo chuẩn
-     */
-    private void zoomAtCenter(double factor) {
-        double screenCenterX = WIDTH / 2.0;
-        double screenCenterY = HEIGHT / 2.0;
-
-        // Vị trí World hiện tại ở tâm màn hình trước khi zoom
-        double worldXBefore = (screenCenterX / zoom) - cameraX;
-        double worldYBefore = (screenCenterY / zoom) - cameraY;
-
-        double targetZoom = zoom * factor;
-        if (targetZoom < MIN_ZOOM) targetZoom = MIN_ZOOM;
-        if (targetZoom > MAX_ZOOM) targetZoom = MAX_ZOOM;
-
-        if (targetZoom != zoom) {
-            zoom = targetZoom;
-
-            // Neo lại góc nhìn camera sao cho tâm màn hình giữ nguyên toạ độ World
-            cameraX = (screenCenterX / zoom) - worldXBefore;
-            cameraY = (screenCenterY / zoom) - worldYBefore;
-
-            clampCamera();
-            repaint();
-        }
-    }
-
-    @Override
-    public void keyTyped(KeyEvent e) {}
-
-    @Override
-    public void keyReleased(KeyEvent e) {}
 
     public void startGameThread() {
         gameThread = new Thread(this);

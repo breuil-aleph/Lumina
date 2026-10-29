@@ -136,11 +136,6 @@ public class EarthArea extends MapArea {
                          (int) (a.getBlue() + (b.getBlue() - a.getBlue()) * t));
     }
 
-    private static Color scale(Color c, double f) {
-        return new Color(Math.min(255, (int) (c.getRed() * f)),
-                         Math.min(255, (int) (c.getGreen() * f)),
-                         Math.min(255, (int) (c.getBlue() * f)));
-    }
 
     // =========================================================================
     // NỀN ĐẢO
@@ -211,7 +206,7 @@ public class EarthArea extends MapArea {
     // =========================================================================
     // Trạng thái sét của khung hình hiện tại (tính trong drawObjects, dùng lại ở drawOverlay)
     private final double[] stormInten = new double[3];
-    private double stormFlash = 0, stormCharge = 0, stormSec = 0;
+    private double stormCharge = 0, stormSec = 0;
     // Chỉ thành true khi PlayState có gọi drawOverlay(). Chưa gọi thì quả cầu tự vẽ ngay trong drawObjects (nằm dưới cây)
     private boolean overlayHooked = false;
 
@@ -240,7 +235,7 @@ public class EarthArea extends MapArea {
             flash = Math.max(flash, stormInten[i]);
             if (boltTarget[i][2] == 1) orbCharge = Math.max(orbCharge, stormInten[i]);
         }
-        stormFlash = flash; stormCharge = orbCharge; stormSec = sec;
+        stormCharge = orbCharge; stormSec = sec;
 
         drawStormClouds(g2, cx, cy, sec, flash);
         drawHalo(g2, cx, cy, sec, flash, true);           // nửa sau của vành hào quang
