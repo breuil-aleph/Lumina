@@ -50,11 +50,13 @@ public class GameStateManager {
     }
 
     public void openAvatarMenu(PlayState currentPlay) {
+        currentPlay.recordPlayerActivity();
         currentState = new AvatarState(this, currentPlay);
     }
 
     // ĐÃ SỬA: Gán thẳng đối tượng GachaState vào currentState
     public void openGachaMenu(PlayState playState) {
+        playState.recordPlayerActivity();
         currentState = new GachaState(this, playState);
     }
 
@@ -78,6 +80,7 @@ public class GameStateManager {
     }
 
     public void openSaveMenu(PlayState currentPlay) {
+        currentPlay.recordPlayerActivity();
         currentState = new SaveLoadState(this, SaveLoadState.MODE_SAVE, currentPlay);
     }
 
@@ -87,7 +90,14 @@ public class GameStateManager {
 
     // Tận dụng dùng cho avatar menu và gacha menu khi bấm quay lại
     public void resumePlayState(PlayState playState) {
+        playState.resetDialogueIdleTimer();
         currentState = playState;
+    }
+
+    public void recordPlayerActivity() {
+        if (currentState instanceof PlayState) {
+            ((PlayState) currentState).recordPlayerActivity();
+        }
     }
 
     public void loadGameFromSave(data.SaveData data) {
