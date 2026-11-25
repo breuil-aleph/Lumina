@@ -11,6 +11,7 @@ import map.MapArea;
 import map.TempleArea;
 import map.WaterArea;
 import map.WindArea;
+import ui.AvatarDialogueBubble;
 
 import java.awt.Color;
 import java.awt.Font;
@@ -79,6 +80,7 @@ public class PlayState extends GameState {
     private Rectangle btnAvatar, btnGacha, btnReadBook;
     private Rectangle btnUpgrade;
     private Rectangle btnSaveGame;
+    private AvatarDialogueBubble avatarDialogueBubble;
 
     // Dữ liệu thống kê người chơi
     private PlayerStats playerStats = new PlayerStats();
@@ -112,12 +114,19 @@ public class PlayState extends GameState {
         btnReadBook = new Rectangle(GamePanel.WIDTH - 240, GamePanel.HEIGHT - 90, 110, 70);
         btnUpgrade = new Rectangle(GamePanel.WIDTH - 220, 20, 200, 45);
         btnSaveGame = new Rectangle(GamePanel.WIDTH - 330, 20, 100, 45);
+        avatarDialogueBubble = new AvatarDialogueBubble();
 
         seeds[1] = 5;
+
+        // Hack
+        seeds[1] = 5939340; seeds[2] = 20000; seeds[3] = 293933; seeds[4] = 930303;
+        energies[1] = 5939340; energies[2] = 20000; energies[3] = 293933; energies[4] = 933124231;
+        // HACK: FIXME: bypass energy check for testing
+
         mapUnlocked[1] = true;
-        mapUnlocked[2] = false;
-        mapUnlocked[3] = false;
-        mapUnlocked[4] = false;
+        mapUnlocked[2] = true;
+        mapUnlocked[3] = true;
+        mapUnlocked[4] = true;
 
         // Đảm bảo ban đầu luôn có Lumi
         if (!unlockedAvatarIds.contains("lumi")) {
@@ -154,6 +163,14 @@ public class PlayState extends GameState {
         this.lastSecondMillis = System.currentTimeMillis();
     }
 
+    public void recordPlayerActivity() {
+        avatarDialogueBubble.recordActivity(System.currentTimeMillis());
+    }
+
+    public void resetDialogueIdleTimer() {
+        avatarDialogueBubble.resetIdleTimer(System.currentTimeMillis());
+    }
+
     @Override
     public void update() {
         // 1. TÍNH THỜI GIAN CHƠI THEO GIÂY
@@ -178,6 +195,10 @@ public class PlayState extends GameState {
                 }
             }
         }
+
+        if (!isReadingBook) {
+            avatarDialogueBubble.update(now, getActiveAvatarId());
+        }
     }
 
     @Override
@@ -200,6 +221,9 @@ public class PlayState extends GameState {
 
         // 3. UI HUD
         drawStaticUI(g2);
+        if (!isReadingBook) {
+            avatarDialogueBubble.draw(g2, btnAvatar, GamePanel.WIDTH, GamePanel.HEIGHT);
+        }
 
         if (isReadingBook) {
             drawMagicBookModal(g2);
@@ -511,6 +535,8 @@ public class PlayState extends GameState {
 
     @Override
     public void mousePressed(int x, int y) {
+        recordPlayerActivity();
+
         if (isReadingBook) {
             isReadingBook = false;
             return;
@@ -735,5 +761,7 @@ public class PlayState extends GameState {
     }
 
     @Override
-    public void mouseMoved(int x, int y) {}
+    public void mouseMoved(int x, int y) {
+        //recordPlayerActivity();
+    }
 }

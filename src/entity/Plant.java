@@ -28,6 +28,7 @@ public class Plant {
     private double spawnScale = 0.2;
 
     // Biến đếm thời gian đung đưa chung
+    // Biến đếm thời gian đung đưa riêng cho cây Map 2
     private double swayTimer = Math.random() * 10;
 
     public Plant(int row, int col, int elementId) {
@@ -89,6 +90,7 @@ public class Plant {
 
         // =====================================================================
         // CHỈ DÀNH RIÊNG CHO CÂY MAP 1 (elementId == 1 - ĐẢO LỬA)
+        // 1. CHỈ DÀNH RIÊNG CHO CÂY MAP 1 (ĐẢO LỬA)
         // =====================================================================
         if (elementId == 1) {
             animTick += 0.055;
@@ -220,6 +222,94 @@ public class Plant {
             g2.drawOval(isoX - size / 2, drawY, size, size);
         }
 
+            return; // Thoát hàm để không chạy code vẽ nhãn Level chung ở dưới
+        }
+
+        // =====================================================================
+        // 2. CHỈ DÀNH RIÊNG CHO CÂY MAP 2 (ĐẢO NƯỚC) - HIỆU ỨNG ĐUNG ĐƯA
+        // =====================================================================
+        if (elementId == 2) {
+            swayTimer += 0.04;
+
+            if (curImg != null) {
+                int drawW = 100 + (level * 25);
+                int drawH = 120 + (level * 30);
+                
+                int drawX = isoX - (drawW / 2);
+                int drawY = isoY - drawH + (PlayState.TILE_H / 2);
+
+                int imgW = curImg.getWidth();
+                int imgH = curImg.getHeight();
+
+                double splitRatio; 
+                int overlap;       
+                double maxAngle;   
+
+                switch (level) {
+                    case 1 -> { splitRatio = 0.50; overlap = 12; maxAngle = 3.5; }
+                    case 2 -> { splitRatio = 0.55; overlap = 16; maxAngle = 3.0; }
+                    default -> { splitRatio = 0.60; overlap = 20; maxAngle = 2.5; }
+                }
+
+                int splitY = (int) (imgH * splitRatio);
+                int splitDrawY = (int) (drawH * splitRatio);
+
+                // VẼ NỬA DƯỚI (CỐ ĐỊNH, KHÔNG ĐUNG ĐƯA)
+                g2.drawImage(curImg,
+                        drawX, drawY + splitDrawY, drawX + drawW, drawY + drawH,
+                        0, splitY, imgW, imgH,
+                        null);
+
+                // VẼ NỬA TRÊN (XOAY ĐUNG ĐƯA VÀ CHÈN LÊN NỬA DƯỚI)
+                double angle = Math.sin(swayTimer) * maxAngle;
+                double pivotX = drawX + (drawW / 2.0);
+                double pivotY = drawY + splitDrawY;
+
+                AffineTransform oldTransform = g2.getTransform();
+                g2.rotate(Math.toRadians(angle), pivotX, pivotY);
+
+                int overlapDrawH = (int) ((double) overlap / imgH * drawH);
+                
+                g2.drawImage(curImg,
+                        drawX, drawY, drawX + drawW, drawY + splitDrawY + overlapDrawH,
+                        0, 0, imgW, splitY + overlap,
+                        null);
+
+                g2.setTransform(oldTransform);
+            } else {
+                int size = 30 + (level * 20);
+                int drawY = isoY - size + (PlayState.TILE_H / 4);
+                g2.setColor(Color.CYAN);
+                g2.fillOval(isoX - size / 2, drawY, size, size);
+                g2.setColor(Color.WHITE);
+                g2.drawOval(isoX - size / 2, drawY, size, size);
+            }
+        } 
+        // =====================================================================
+        // 3. MẶC ĐỊNH CHO CÁC MAP CÒN LẠI (ĐẤT, GIÓ) - ẢNH TĨNH
+        // =====================================================================
+        else {
+            if (curImg != null) {
+                int drawW = 100 + (level * 25);
+                int drawH = 120 + (level * 30);
+                int drawX = isoX - (drawW / 2);
+                int drawY = isoY - drawH + (PlayState.TILE_H / 2);
+                g2.drawImage(curImg, drawX, drawY, drawW, drawH, null);
+            } else {
+                int size = 30 + (level * 20);
+                int drawY = isoY - size + (PlayState.TILE_H / 4);
+                Color c = switch (elementId) {
+                    case 3 -> new Color(139, 69, 19);
+                    default -> Color.GREEN;
+                };
+                g2.setColor(c);
+                g2.fillOval(isoX - size / 2, drawY, size, size);
+                g2.setColor(Color.WHITE);
+                g2.drawOval(isoX - size / 2, drawY, size, size);
+            }
+        }
+
+        // Vẽ nhãn Level chung cho Map 2, 3 và 4
         g2.setFont(new Font("Arial", Font.BOLD, 14));
         g2.setColor(Color.BLACK);
         g2.drawString("Lv." + level, isoX - 12, isoY - 70 - (level * 15) + 1);
