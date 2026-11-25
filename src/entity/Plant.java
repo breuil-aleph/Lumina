@@ -27,6 +27,7 @@ public class Plant {
     private double animTick;
     private double spawnScale = 0.2;
 
+    // Biến đếm thời gian đung đưa chung
     // Biến đếm thời gian đung đưa riêng cho cây Map 2
     private double swayTimer = Math.random() * 10;
 
@@ -45,9 +46,10 @@ public class Plant {
             case 3 -> "map3";
             default -> "map4";
         };
-        imgLv1 = ImageHelper.getOrLoadImage("res/" + folder + "/plant_lv1.png");
-        imgLv2 = ImageHelper.getOrLoadImage("res/" + folder + "/plant_lv2.png");
-        imgLv3 = ImageHelper.getOrLoadImage("res/" + folder + "/plant_lv3.png");
+        // Sử dụng logic nạp ảnh ưu việt từ Plantphu hoặc ImageHelper gốc
+        imgLv1 = ImageHelper.loadImage("res/" + folder + "/plant_lv1.png");
+        imgLv2 = ImageHelper.loadImage("res/" + folder + "/plant_lv2.png");
+        imgLv3 = ImageHelper.loadImage("res/" + folder + "/plant_lv3.png");
     }
 
     public double getBaseEnergyPerSecond() {
@@ -75,6 +77,8 @@ public class Plant {
     }
 
     public void draw(Graphics2D g2) {
+        swayTimer += 0.04;
+
         int isoX = ImageHelper.getIslandIsoX(elementId, row, col);
         int isoY = ImageHelper.getIslandIsoY(elementId, row, col);
 
@@ -85,6 +89,7 @@ public class Plant {
         };
 
         // =====================================================================
+        // CHỈ DÀNH RIÊNG CHO CÂY MAP 1 (elementId == 1 - ĐẢO LỬA)
         // 1. CHỈ DÀNH RIÊNG CHO CÂY MAP 1 (ĐẢO LỬA)
         // =====================================================================
         if (elementId == 1) {
@@ -139,6 +144,84 @@ public class Plant {
 
             drawElementalFireflies(g2, isoX, footY, baseH, fireColor);
             drawLevelBadge(g2, isoX, footY - baseH - 12, fireColor);
+            return;
+        }
+
+        // =====================================================================
+        // CÁC ĐẢO KHÁC: ĐUNG ĐƯA NỬA TRÊN - CỐ ĐỊNH CHÂN GỐC
+        // =====================================================================
+        if (curImg != null) {
+            int drawW = 100 + (level * 25);
+            int drawH = 120 + (level * 30);
+            
+            int drawX = isoX - (drawW / 2);
+            int drawY = isoY - drawH + (PlayState.TILE_H / 2);
+
+            int imgW = curImg.getWidth();
+            int imgH = curImg.getHeight();
+
+            double splitRatio; 
+            int overlap;       
+            double maxAngle;   
+
+            switch (level) {
+                case 1 -> {
+                    splitRatio = 0.50; 
+                    overlap = 12;
+                    maxAngle = 3.5;
+                }
+                case 2 -> {
+                    splitRatio = 0.55; 
+                    overlap = 16;
+                    maxAngle = 3.0;
+                }
+                default -> { 
+                    splitRatio = 0.60; 
+                    overlap = 20;
+                    maxAngle = 2.5;    
+                }
+            }
+
+            int splitY = (int) (imgH * splitRatio);
+            int splitDrawY = (int) (drawH * splitRatio);
+
+            // Vẽ chân gốc cố định
+            g2.drawImage(curImg,
+                    drawX, drawY + splitDrawY, drawX + drawW, drawY + drawH,
+                    0, splitY, imgW, imgH,
+                    null);
+
+            // Vẽ tán cây xoay đung đưa
+            double angle = Math.sin(swayTimer) * maxAngle;
+            
+            double pivotX = drawX + (drawW / 2.0);
+            double pivotY = drawY + splitDrawY;
+
+            AffineTransform oldTransform = g2.getTransform();
+            g2.rotate(Math.toRadians(angle), pivotX, pivotY);
+
+            int overlapDrawH = (int) ((double) overlap / imgH * drawH);
+            
+            g2.drawImage(curImg,
+                    drawX, drawY, drawX + drawW, drawY + splitDrawY + overlapDrawH,
+                    0, 0, imgW, splitY + overlap,
+                    null);
+
+            g2.setTransform(oldTransform);
+        } else {
+            int size = 30 + (level * 20);
+            int drawY = isoY - size + (PlayState.TILE_H / 4);
+            Color c = switch (elementId) {
+                case 2 -> Color.CYAN;
+                case 3 -> new Color(139, 69, 19);
+                default -> Color.GREEN;
+            };
+            g2.setColor(c);
+            g2.fillOval(isoX - size / 2, drawY, size, size);
+            g2.setColor(Color.WHITE);
+            g2.drawOval(isoX - size / 2, drawY, size, size);
+        }
+
             return; // Thoát hàm để không chạy code vẽ nhãn Level chung ở dưới
         }
 
