@@ -14,11 +14,12 @@ public class WaterArea extends MapArea {
     public static final int MAP2_HEIGHT = SIZE * PlayState.TILE_H;
 
     // --- CÁC THÔNG SỐ CO GIÃN VÀ ĐỘ DỜI BỀ MẶT ĐẢO ---
-    public static double scaleX = 1.05; // Tỉ lệ co giãn chiều ngang
-    public static double scaleY = 1.32; // Kéo dài riêng chiều dọc
+    public static double scaleX = 1.1; // Tỉ lệ co giãn chiều ngang
+    public static double scaleY = 1.37; // Kéo dài riêng chiều dọc
     public static int offsetY = 60;     // Dịch chuyển lên (-) hoặc xuống (+) để khớp lưới ô đất
 
     private BufferedImage islandBgImg;
+    private WinterEffectsManager winterEffects;
 
     // --- 1. KHAI BÁO BIẾN LƯU ẢNH CÂY VÀ BIẾN ĐẾM THỜI GIAN ĐUNG ĐƯA ---
     private BufferedImage plantLv1Img;
@@ -31,6 +32,9 @@ public class WaterArea extends MapArea {
     public WaterArea() {
         super(false);
         loadImages();
+        int cx = ImageHelper.getIslandCenterX(ISLAND_ID);
+        int cy = ImageHelper.getIslandCenterY(ISLAND_ID);
+        winterEffects = new WinterEffectsManager(cx, cy, MAP2_WIDTH, MAP2_HEIGHT);
     }
 
     @Override
@@ -84,8 +88,11 @@ public class WaterArea extends MapArea {
 
     @Override
     public void drawObjects(Graphics2D g2) {
-        // --- 3. CẬP NHẬT NHỊP ĐUNG ĐƯA THEO MỖI FRAME ---
         swayTimer += 0.04;
+        if (winterEffects != null) {
+           winterEffects.update();
+           winterEffects.draw(g2);
+        }
     }
 
     /**

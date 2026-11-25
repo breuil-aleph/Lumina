@@ -11,7 +11,7 @@ import map.MapArea;
 import map.TempleArea;
 import map.WaterArea;
 import map.WindArea;
-
+import ui.AvatarDialogueBubble;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
@@ -58,6 +58,7 @@ public class PlayState extends GameState {
     private WindArea windArea;
     private TempleArea templeArea;
     private MapArea[] islandAreas = new MapArea[5];
+    private AvatarDialogueBubble avatarDialogueBubble;
 
     // Quản lý cây trên 4 đảo: [islandId 1..4][r 0..11][c 0..11]
     private Plant[][][] plants = new Plant[5][ISLAND_SIZE][ISLAND_SIZE];
@@ -112,6 +113,7 @@ public class PlayState extends GameState {
         btnReadBook = new Rectangle(GamePanel.WIDTH - 240, GamePanel.HEIGHT - 90, 110, 70);
         btnUpgrade = new Rectangle(GamePanel.WIDTH - 220, 20, 200, 45);
         btnSaveGame = new Rectangle(GamePanel.WIDTH - 330, 20, 100, 45);
+        avatarDialogueBubble = new AvatarDialogueBubble();
 
         seeds[1] = 5;
         mapUnlocked[1] = true;
@@ -154,6 +156,18 @@ public class PlayState extends GameState {
         this.lastSecondMillis = System.currentTimeMillis();
     }
 
+    public void recordPlayerActivity() {
+        if (avatarDialogueBubble != null) {
+            avatarDialogueBubble.recordActivity(System.currentTimeMillis());
+        }
+    }
+
+    public void resetDialogueIdleTimer() {
+        if (avatarDialogueBubble != null) {
+            avatarDialogueBubble.resetIdleTimer(System.currentTimeMillis());
+        }
+    }
+
     @Override
     public void update() {
         // 1. TÍNH THỜI GIAN CHƠI THEO GIÂY
@@ -178,6 +192,9 @@ public class PlayState extends GameState {
                 }
             }
         }
+        if (!isReadingBook && avatarDialogueBubble != null) {
+            avatarDialogueBubble.update(now, getActiveAvatarId());
+        }
     }
 
     @Override
@@ -200,7 +217,9 @@ public class PlayState extends GameState {
 
         // 3. UI HUD
         drawStaticUI(g2);
-
+        if (!isReadingBook && avatarDialogueBubble != null) {
+            avatarDialogueBubble.draw(g2, btnAvatar, GamePanel.WIDTH, GamePanel.HEIGHT);
+        }
         if (isReadingBook) {
             drawMagicBookModal(g2);
         }
@@ -511,6 +530,7 @@ public class PlayState extends GameState {
 
     @Override
     public void mousePressed(int x, int y) {
+        recordPlayerActivity();
         if (isReadingBook) {
             isReadingBook = false;
             return;

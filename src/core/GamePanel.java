@@ -76,15 +76,15 @@ public class GamePanel extends JPanel implements Runnable {
             int lastX, lastY;
 
             @Override
-            public void mousePressed(MouseEvent e) {
+                public void mousePressed(MouseEvent e) {
+                requestFocusInWindow();
                 lastX = e.getX();
                 lastY = e.getY();
                 gsm.mousePressed(e.getX(), e.getY());
             }
-
             @Override
             public void mouseDragged(MouseEvent e) {
-                // Di chuyển bản đồ theo thao tác kéo chuột
+                gsm.recordPlayerActivity();
                 cameraX += (e.getX() - lastX) / zoom;
                 cameraY += (e.getY() - lastY) / zoom;
                 lastX = e.getX();
@@ -99,6 +99,7 @@ public class GamePanel extends JPanel implements Runnable {
 
             @Override
             public void mouseWheelMoved(MouseWheelEvent e) {
+                gsm.recordPlayerActivity();
                 double mouseX = e.getX();
                 double mouseY = e.getY();
 
