@@ -20,21 +20,6 @@ public class AvatarDialogueBubble {
     private static final int PADDING_Y = 9;
     private static final Font TEXT_FONT = new Font("Arial", Font.PLAIN, 13);
 
-    private static final String[] DEFAULT_DIALOGUES = {
-            "Thoại số 1...",
-            "Thoại số 2...",
-            "Thoại số 3..."
-    };
-
-    private static final Map<String, String[]> DIALOGUES_BY_AVATAR = new HashMap<>();
-
-    static {
-        DIALOGUES_BY_AVATAR.put("lumi", new String[] {
-                "Thoại số 1...",
-                "Thoại số 2...",
-                "Thoại số 3..."
-        });
-    }
 
     private final Random random = new Random();
     private final Map<String, String> previousDialogueByAvatar = new HashMap<>();
@@ -196,7 +181,7 @@ public class AvatarDialogueBubble {
     }
 
     private String chooseDialogue(String avatarId) {
-        String[] dialogues = DIALOGUES_BY_AVATAR.getOrDefault(avatarId, DEFAULT_DIALOGUES);
+        String[] dialogues = AvatarDialogues.getDialogues(avatarId);
         String previousDialogue = previousDialogueByAvatar.get(avatarId);
         int selectedIndex = random.nextInt(dialogues.length);
 
