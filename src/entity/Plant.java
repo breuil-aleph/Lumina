@@ -27,6 +27,9 @@ public class Plant {
     private double animTick;
     private double spawnScale = 0.2;
 
+    // Biến đếm thời gian đung đưa riêng cho cây Map 2
+    private double swayTimer = Math.random() * 10;
+
     public Plant(int row, int col, int elementId) {
         this.row = row;
         this.col = col;
@@ -82,9 +85,127 @@ public class Plant {
         };
 
         // =====================================================================
-        // NẾU KHÔNG PHẢI MAP 1 (LỬA): VẼ MẶC ĐỊNH NGUYÊN BẢN CỦA NHÓM
+        // 1. CHỈ DÀNH RIÊNG CHO CÂY MAP 1 (ĐẢO LỬA)
         // =====================================================================
-        if (elementId != 1) {
+        if (elementId == 1) {
+            animTick += 0.055;
+            if (spawnScale < 1.0) {
+                spawnScale = Math.min(1.0, spawnScale + 0.06);
+            }
+
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+            int footY = isoY + (PlayState.TILE_H / 2);
+            Color fireColor = new Color(255, 120, 20);
+
+            int targetH = switch (level) {
+                case 1 -> 135;
+                case 2 -> 180;
+                default -> 245; 
+            };
+
+            double breatheScale = 1.0 + Math.sin(animTick * 2.0) * 0.02;
+            int baseH = (int) (targetH * spawnScale * breatheScale);
+            int baseW;
+
+            if (curImg != null && curImg.getHeight() > 0) {
+                double aspectRatio = (double) curImg.getWidth() / curImg.getHeight();
+                baseW = (int) Math.round(baseH * aspectRatio);
+            } else {
+                baseW = (int) (baseH * 0.85);
+            }
+
+            drawSoftNaturalShadow(g2, isoX, footY - 8, baseW);
+
+            double swayAngleDeg = Math.sin(animTick) * (1.8 + level * 0.3);
+
+            AffineTransform oldTransform = g2.getTransform();
+            g2.rotate(Math.toRadians(swayAngleDeg), isoX, footY);
+
+            if (curImg != null) {
+                int drawX = isoX - (baseW / 2);
+                int drawY = footY - baseH;
+                g2.drawImage(curImg, drawX, drawY, baseW, baseH, null);
+            } else {
+                int size = (int) ((40 + (level * 22)) * spawnScale);
+                int drawY = footY - size;
+                g2.setColor(fireColor);
+                g2.fillOval(isoX - size / 2, drawY, size, size);
+                g2.setColor(Color.WHITE);
+                g2.drawOval(isoX - size / 2, drawY, size, size);
+            }
+
+            g2.setTransform(oldTransform);
+
+            drawElementalFireflies(g2, isoX, footY, baseH, fireColor);
+            drawLevelBadge(g2, isoX, footY - baseH - 12, fireColor);
+            return; // Thoát hàm để không chạy code vẽ nhãn Level chung ở dưới
+        }
+
+        // =====================================================================
+        // 2. CHỈ DÀNH RIÊNG CHO CÂY MAP 2 (ĐẢO NƯỚC) - HIỆU ỨNG ĐUNG ĐƯA
+        // =====================================================================
+        if (elementId == 2) {
+            swayTimer += 0.04;
+
+            if (curImg != null) {
+                int drawW = 100 + (level * 25);
+                int drawH = 120 + (level * 30);
+                
+                int drawX = isoX - (drawW / 2);
+                int drawY = isoY - drawH + (PlayState.TILE_H / 2);
+
+                int imgW = curImg.getWidth();
+                int imgH = curImg.getHeight();
+
+                double splitRatio; 
+                int overlap;       
+                double maxAngle;   
+
+                switch (level) {
+                    case 1 -> { splitRatio = 0.50; overlap = 12; maxAngle = 3.5; }
+                    case 2 -> { splitRatio = 0.55; overlap = 16; maxAngle = 3.0; }
+                    default -> { splitRatio = 0.60; overlap = 20; maxAngle = 2.5; }
+                }
+
+                int splitY = (int) (imgH * splitRatio);
+                int splitDrawY = (int) (drawH * splitRatio);
+
+                // VẼ NỬA DƯỚI (CỐ ĐỊNH, KHÔNG ĐUNG ĐƯA)
+                g2.drawImage(curImg,
+                        drawX, drawY + splitDrawY, drawX + drawW, drawY + drawH,
+                        0, splitY, imgW, imgH,
+                        null);
+
+                // VẼ NỬA TRÊN (XOAY ĐUNG ĐƯA VÀ CHÈN LÊN NỬA DƯỚI)
+                double angle = Math.sin(swayTimer) * maxAngle;
+                double pivotX = drawX + (drawW / 2.0);
+                double pivotY = drawY + splitDrawY;
+
+                AffineTransform oldTransform = g2.getTransform();
+                g2.rotate(Math.toRadians(angle), pivotX, pivotY);
+
+                int overlapDrawH = (int) ((double) overlap / imgH * drawH);
+                
+                g2.drawImage(curImg,
+                        drawX, drawY, drawX + drawW, drawY + splitDrawY + overlapDrawH,
+                        0, 0, imgW, splitY + overlap,
+                        null);
+
+                g2.setTransform(oldTransform);
+            } else {
+                int size = 30 + (level * 20);
+                int drawY = isoY - size + (PlayState.TILE_H / 4);
+                g2.setColor(Color.CYAN);
+                g2.fillOval(isoX - size / 2, drawY, size, size);
+                g2.setColor(Color.WHITE);
+                g2.drawOval(isoX - size / 2, drawY, size, size);
+            }
+        } 
+        // =====================================================================
+        // 3. MẶC ĐỊNH CHO CÁC MAP CÒN LẠI (ĐẤT, GIÓ) - ẢNH TĨNH
+        // =====================================================================
+        else {
             if (curImg != null) {
                 int drawW = 100 + (level * 25);
                 int drawH = 120 + (level * 30);
@@ -95,7 +216,6 @@ public class Plant {
                 int size = 30 + (level * 20);
                 int drawY = isoY - size + (PlayState.TILE_H / 4);
                 Color c = switch (elementId) {
-                    case 2 -> Color.CYAN;
                     case 3 -> new Color(139, 69, 19);
                     default -> Color.GREEN;
                 };
@@ -104,89 +224,22 @@ public class Plant {
                 g2.setColor(Color.WHITE);
                 g2.drawOval(isoX - size / 2, drawY, size, size);
             }
-
-            g2.setFont(new Font("Arial", Font.BOLD, 14));
-            g2.setColor(Color.BLACK);
-            g2.drawString("Lv." + level, isoX - 12, isoY - 70 - (level * 15) + 1);
-            g2.setColor(Color.YELLOW);
-            g2.drawString("Lv." + level, isoX - 13, isoY - 70 - (level * 15));
-            return;
         }
 
-        // =====================================================================
-        // CHỈ DÀNH RIÊNG CHO CÂY MAP 1 (elementId == 1 - ĐẢO LỬA)
-        // =====================================================================
-        animTick += 0.055;
-        if (spawnScale < 1.0) {
-            spawnScale = Math.min(1.0, spawnScale + 0.06);
-        }
-
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-        // ĐỒNG BỘ TỌA ĐỘ GỐC CÂY: Điểm chạm đất nằm khớp 100% với đáy ảnh cây
-        int footY = isoY + (PlayState.TILE_H / 2);
-        Color fireColor = new Color(255, 120, 20);
-
-        // 1. TÍNH KÍCH THƯỚC THEO ĐÚNG TỈ LỆ GỐC CỦA ẢNH (KHÔNG BAO GIỜ BỊ DẸT)
-        int targetH = switch (level) {
-            case 1 -> 135;
-            case 2 -> 180;
-            default -> 245; // Lv.3 cao lớn vượt trội
-        };
-
-        double breatheScale = 1.0 + Math.sin(animTick * 2.0) * 0.02;
-        int baseH = (int) (targetH * spawnScale * breatheScale);
-        int baseW;
-
-        if (curImg != null && curImg.getHeight() > 0) {
-            // Lấy đúng tỉ lệ Rộng / Cao của file ảnh PNG để không làm biến dạng cây
-            double aspectRatio = (double) curImg.getWidth() / curImg.getHeight();
-            baseW = (int) Math.round(baseH * aspectRatio);
-        } else {
-            baseW = (int) (baseH * 0.85);
-        }
-
-        // 2. Vẽ bóng đổ mềm ngay dưới đáy gốc cây (nâng lên 8px để ôm vừa khít rễ)
-        drawSoftNaturalShadow(g2, isoX, footY - 8, baseW);
-
-        // 3. Thân cây đung đưa nhẹ quanh đúng gốc (isoX, footY)
-        double swayAngleDeg = Math.sin(animTick) * (1.8 + level * 0.3);
-
-        AffineTransform oldTransform = g2.getTransform();
-        g2.rotate(Math.toRadians(swayAngleDeg), isoX, footY);
-
-        if (curImg != null) {
-            int drawX = isoX - (baseW / 2);
-            int drawY = footY - baseH;
-            g2.drawImage(curImg, drawX, drawY, baseW, baseH, null);
-        } else {
-            int size = (int) ((40 + (level * 22)) * spawnScale);
-            int drawY = footY - size;
-            g2.setColor(fireColor);
-            g2.fillOval(isoX - size / 2, drawY, size, size);
-            g2.setColor(Color.WHITE);
-            g2.drawOval(isoX - size / 2, drawY, size, size);
-        }
-
-        g2.setTransform(oldTransform);
-
-        // 4. Đom đóm lửa bay quanh tán cây
-        drawElementalFireflies(g2, isoX, footY, baseH, fireColor);
-
-        // 5. Nhãn Level trên đầu cây
-        drawLevelBadge(g2, isoX, footY - baseH - 12, fireColor);
+        // Vẽ nhãn Level chung cho Map 2, 3 và 4
+        g2.setFont(new Font("Arial", Font.BOLD, 14));
+        g2.setColor(Color.BLACK);
+        g2.drawString("Lv." + level, isoX - 12, isoY - 70 - (level * 15) + 1);
+        g2.setColor(Color.YELLOW);
+        g2.drawString("Lv." + level, isoX - 13, isoY - 70 - (level * 15));
     }
 
-    /**
-     * Vẽ bóng đổ mềm tự nhiên tỉ lệ theo bề ngang thực tế của cây
-     */
     private void drawSoftNaturalShadow(Graphics2D g2, int shadowCenterX, int shadowCenterY, int treeWidth) {
         int radius = Math.max(10, (int) (treeWidth * 0.36));
 
         AffineTransform oldTrans = g2.getTransform();
         Paint oldPaint = g2.getPaint();
 
-        // Nén trục Y tỉ lệ 2:1 chuẩn Isometric để bóng trải phẳng trên mặt sàn
         g2.translate(shadowCenterX, shadowCenterY);
         g2.scale(1.0, 0.5);
 
@@ -195,9 +248,9 @@ public class Plant {
             radius,
             new float[]{0.0f, 0.5f, 1.0f},
             new Color[]{
-                new Color(0, 0, 0, 125), // Đậm vừa phải dưới đáy rễ
-                new Color(0, 0, 0, 50),  // Mờ dần ra xung quanh
-                new Color(0, 0, 0, 0)    // Tan biến hoàn toàn, không có viền
+                new Color(0, 0, 0, 125), 
+                new Color(0, 0, 0, 50),  
+                new Color(0, 0, 0, 0)    
             }
         );
 
