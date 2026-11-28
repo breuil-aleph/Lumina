@@ -54,7 +54,6 @@ public class GameStateManager {
         currentState = new AvatarState(this, currentPlay);
     }
 
-    // ĐÃ SỬA: Gán thẳng đối tượng GachaState vào currentState
     public void openGachaMenu(PlayState playState) {
         playState.recordPlayerActivity();
         currentState = new GachaState(this, playState);
@@ -88,7 +87,6 @@ public class GameStateManager {
         currentState = new SaveLoadState(this, SaveLoadState.MODE_LOAD, null);
     }
 
-    // Tận dụng dùng cho avatar menu và gacha menu khi bấm quay lại
     public void resumePlayState(PlayState playState) {
         playState.resetDialogueIdleTimer();
         currentState = playState;

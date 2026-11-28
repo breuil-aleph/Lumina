@@ -19,7 +19,6 @@ public class WinterEffectsManager {
         this.islandWidth = width;
         this.islandHeight = height;
 
-        // Khởi tạo 35 bông tuyết rơi và xoay tròn trong phạm vi đảo
         for (int i = 0; i < 35; i++) {
             snowflakes.add(new Snowflake(centerX, centerY, width, height));
         }
@@ -50,13 +49,12 @@ public class WinterEffectsManager {
         }
     }
 
-    // --- LỚP BÔNG TUYẾT RƠI & XOAY TRÒN ---
     private static class Snowflake {
         double x, y;
         double speedY, speedX;
-        double angle = 0;       // Góc xoay hiện tại của bông tuyết
-        double rotSpeed;        // Tốc độ xoay nhanh/chậm
-        int size;               // Kích thước hiển thị bông tuyết
+        double angle = 0;
+        double rotSpeed;
+        int size;
         int cX, cY, w, h;
         private static BufferedImage snowImg;
 
@@ -66,7 +64,6 @@ public class WinterEffectsManager {
             this.w = width;
             this.h = height;
             
-            // Nạp ảnh bông tuyết (chỉ load 1 lần dùng chung)
             if (snowImg == null) {
                 snowImg = ImageHelper.loadImage("res/map2/bongtuyet.png");
             }
@@ -76,18 +73,17 @@ public class WinterEffectsManager {
         public void reset() {
             x = cX - (w / 2.0) + Math.random() * w;
             y = cY - (h / 2.0) - Math.random() * 200;
-            speedY = 0.8 + Math.random() * 1.5; // Tốc độ rơi nhẹ nhàng
-            speedX = -0.2 + Math.random() * 0.4; // Gió thổi ngang lất phất
-            rotSpeed = -0.03 + Math.random() * 0.06; // Tốc độ và hướng xoay ngẫu nhiên
-            size = 16 + (int)(Math.random() * 16);     // Kích thước từ 16 đến 32 pixel
+            speedY = 0.8 + Math.random() * 1.5;
+            speedX = -0.2 + Math.random() * 0.4;
+            rotSpeed = -0.03 + Math.random() * 0.06;
+            size = 16 + (int)(Math.random() * 16);
         }
 
         public void update(int centerX, int centerY, int width, int height) {
             y += speedY;
-            x += speedX + Math.sin(y * 0.04) * 0.3; // Hiệu ứng lượn sóng theo gió
-            angle += rotSpeed;                      // Tăng góc xoay theo thời gian
+            x += speedX + Math.sin(y * 0.04) * 0.3;
+            angle += rotSpeed;
 
-            // Khi rơi qua khỏi đáy đảo thì tái sinh lại ở phía trên
             if (y > centerY + (height / 2.0)) {
                 x = centerX - (width / 2.0) + Math.random() * width;
                 y = centerY - (height / 2.0) - 50;
@@ -96,27 +92,18 @@ public class WinterEffectsManager {
 
         public void draw(Graphics2D g2) {
             if (snowImg != null) {
-                // Lưu trạng thái cọ vẽ cũ
                 AffineTransform oldTransform = g2.getTransform();
-
-                // Dịch chuyển tâm cọ vẽ đến vị trí bông tuyết và thực hiện xoay góc (angle)
                 g2.translate(x + size / 2.0, y + size / 2.0);
                 g2.rotate(angle);
-
-                // Vẽ ảnh bông tuyết (căn giữa tâm xoay)
                 g2.drawImage(snowImg, -size / 2, -size / 2, size, size, null);
-
-                // Khôi phục trạng thái cọ vẽ
                 g2.setTransform(oldTransform);
             } else {
-                // Dự phòng nếu chưa tìm thấy ảnh
                 g2.setColor(Color.WHITE);
                 g2.fillOval((int)x, (int)y, size / 2, size / 2);
             }
         }
     }
 
-    // --- NGƯỜI TUYẾT ---
     private static class Snowman {
         double x, y;
         double startX;
@@ -146,7 +133,6 @@ public class WinterEffectsManager {
         }
     }
 
-    // --- XE TUẦN LỘC ---
     private static class ReindeerSleigh {
         double x, y;
         double angle = 0;

@@ -12,7 +12,6 @@ import map.TempleArea;
 import map.WaterArea;
 import map.WindArea;
 import ui.AvatarDialogueBubble;
-
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
@@ -59,6 +58,7 @@ public class PlayState extends GameState {
     private WindArea windArea;
     private TempleArea templeArea;
     private MapArea[] islandAreas = new MapArea[5];
+    private AvatarDialogueBubble avatarDialogueBubble;
 
     // Quản lý cây trên 4 đảo: [islandId 1..4][r 0..11][c 0..11]
     private Plant[][][] plants = new Plant[5][ISLAND_SIZE][ISLAND_SIZE];
@@ -80,7 +80,6 @@ public class PlayState extends GameState {
     private Rectangle btnAvatar, btnGacha, btnReadBook;
     private Rectangle btnUpgrade;
     private Rectangle btnSaveGame;
-    private AvatarDialogueBubble avatarDialogueBubble;
 
     // Dữ liệu thống kê người chơi
     private PlayerStats playerStats = new PlayerStats();
@@ -117,16 +116,10 @@ public class PlayState extends GameState {
         avatarDialogueBubble = new AvatarDialogueBubble();
 
         seeds[1] = 5;
-
-        // Hack
-        seeds[1] = 5939340; seeds[2] = 20000; seeds[3] = 293933; seeds[4] = 930303;
-        energies[1] = 5939340; energies[2] = 20000; energies[3] = 293933; energies[4] = 933124231;
-        // HACK: FIXME: bypass energy check for testing
-
         mapUnlocked[1] = true;
-        mapUnlocked[2] = true;
-        mapUnlocked[3] = true;
-        mapUnlocked[4] = true;
+        mapUnlocked[2] = false;
+        mapUnlocked[3] = false;
+        mapUnlocked[4] = false;
 
         // Đảm bảo ban đầu luôn có Lumi
         if (!unlockedAvatarIds.contains("lumi")) {
@@ -164,11 +157,15 @@ public class PlayState extends GameState {
     }
 
     public void recordPlayerActivity() {
-        avatarDialogueBubble.recordActivity(System.currentTimeMillis());
+        if (avatarDialogueBubble != null) {
+            avatarDialogueBubble.recordActivity(System.currentTimeMillis());
+        }
     }
 
     public void resetDialogueIdleTimer() {
-        avatarDialogueBubble.resetIdleTimer(System.currentTimeMillis());
+        if (avatarDialogueBubble != null) {
+            avatarDialogueBubble.resetIdleTimer(System.currentTimeMillis());
+        }
     }
 
     @Override
@@ -195,8 +192,7 @@ public class PlayState extends GameState {
                 }
             }
         }
-
-        if (!isReadingBook) {
+        if (!isReadingBook && avatarDialogueBubble != null) {
             avatarDialogueBubble.update(now, getActiveAvatarId());
         }
     }
@@ -221,10 +217,9 @@ public class PlayState extends GameState {
 
         // 3. UI HUD
         drawStaticUI(g2);
-        if (!isReadingBook) {
+        if (!isReadingBook && avatarDialogueBubble != null) {
             avatarDialogueBubble.draw(g2, btnAvatar, GamePanel.WIDTH, GamePanel.HEIGHT);
         }
-
         if (isReadingBook) {
             drawMagicBookModal(g2);
         }
@@ -536,7 +531,6 @@ public class PlayState extends GameState {
     @Override
     public void mousePressed(int x, int y) {
         recordPlayerActivity();
-
         if (isReadingBook) {
             isReadingBook = false;
             return;
@@ -761,7 +755,5 @@ public class PlayState extends GameState {
     }
 
     @Override
-    public void mouseMoved(int x, int y) {
-        //recordPlayerActivity();
-    }
+    public void mouseMoved(int x, int y) {}
 }

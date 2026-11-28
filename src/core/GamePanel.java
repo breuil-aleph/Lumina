@@ -7,8 +7,6 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
@@ -78,17 +76,15 @@ public class GamePanel extends JPanel implements Runnable {
             int lastX, lastY;
 
             @Override
-            public void mousePressed(MouseEvent e) {
+                public void mousePressed(MouseEvent e) {
                 requestFocusInWindow();
                 lastX = e.getX();
                 lastY = e.getY();
                 gsm.mousePressed(e.getX(), e.getY());
             }
-
             @Override
             public void mouseDragged(MouseEvent e) {
                 gsm.recordPlayerActivity();
-                // Di chuyển bản đồ theo thao tác kéo chuột
                 cameraX += (e.getX() - lastX) / zoom;
                 cameraY += (e.getY() - lastY) / zoom;
                 lastX = e.getX();
