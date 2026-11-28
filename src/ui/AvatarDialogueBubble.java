@@ -14,27 +14,12 @@ public class AvatarDialogueBubble {
     private static final long INITIAL_IDLE_MILLIS = 2_000;
     private static final long DISPLAY_MILLIS = 2_000;
     private static final long MIN_BREAK_MILLIS = 1_000;
-    private static final long MAX_BREAK_MILLIS = 2_000;
+    private static final long MAX_BREAK_MILLIS = 2_000; // FIXME: TEST BUBBLE
     private static final int MAX_TEXT_WIDTH = 280;
     private static final int PADDING_X = 12;
     private static final int PADDING_Y = 9;
     private static final Font TEXT_FONT = new Font("Arial", Font.PLAIN, 13);
 
-    private static final String[] DEFAULT_DIALOGUES = {
-            "Thoại số 1...",
-            "Thoại số 2...",
-            "Thoại số 3..."
-    };
-
-    private static final Map<String, String[]> DIALOGUES_BY_AVATAR = new HashMap<>();
-
-    static {
-        DIALOGUES_BY_AVATAR.put("lumi", new String[] {
-                "Thoại số 1...",
-                "Thoại số 2...",
-                "Thoại số 3..."
-        });
-    }
 
     private final Random random = new Random();
     private final Map<String, String> previousDialogueByAvatar = new HashMap<>();
@@ -123,29 +108,46 @@ public class AvatarDialogueBubble {
     private void drawBubbleShape(Graphics2D g2, int x, int y, int width, int height) {
         int radius = 12;
 
+        // Vị trí phần đuôi trên cạnh trái
         double tailTop = y + height * 0.40;
         double tailBottom = y + height * 0.62;
         double tailTipX = x - 28;
         double tailTipY = y + height * 0.78;
 
         Path2D bubble = new Path2D.Double();
+
+        // Góc trên trái
         bubble.moveTo(x + radius, y);
+
+        // Cạnh trên và góc trên phải
         bubble.lineTo(x + width - radius, y);
         bubble.quadTo(x + width, y, x + width, y + radius);
+
+        // Cạnh phải và góc dưới phải
         bubble.lineTo(x + width, y + height - radius);
-        bubble.quadTo(x + width, y + height, x + width - radius, y + height);
+        bubble.quadTo(x + width, y + height,
+                x + width - radius, y + height);
+
+        // Cạnh dưới và góc dưới trái
         bubble.lineTo(x + radius, y + height);
         bubble.quadTo(x, y + height, x, y + height - radius);
+
+        // Cạnh trái + đuôi hướng về avatar
         bubble.lineTo(x, tailBottom);
         bubble.lineTo(tailTipX, tailTipY);
         bubble.lineTo(x, tailTop);
+
+        // Góc trên trái
         bubble.lineTo(x, y + radius);
         bubble.quadTo(x, y, x + radius, y);
+
         bubble.closePath();
 
+        // Vẽ nền trắng
         g2.setColor(Color.WHITE);
         g2.fill(bubble);
 
+        // Viền đen
         g2.setColor(Color.BLACK);
         g2.setStroke(new java.awt.BasicStroke(
                 2.0f,
@@ -166,7 +168,8 @@ public class AvatarDialogueBubble {
                 line.setLength(0);
                 line.append(word);
             } else {
-                if (line.length() > 0) line.append(' ');
+                if (line.length() > 0)
+                    line.append(' ');
                 line.append(word);
             }
         }
@@ -178,7 +181,7 @@ public class AvatarDialogueBubble {
     }
 
     private String chooseDialogue(String avatarId) {
-        String[] dialogues = DIALOGUES_BY_AVATAR.getOrDefault(avatarId, DEFAULT_DIALOGUES);
+        String[] dialogues = AvatarDialogues.getDialogues(avatarId);
         String previousDialogue = previousDialogueByAvatar.get(avatarId);
         int selectedIndex = random.nextInt(dialogues.length);
 
